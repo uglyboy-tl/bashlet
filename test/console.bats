@@ -4,7 +4,7 @@ load 'test_helper/common-setup'
 
 setup() {
     _common_setup
-    source "$PROJECT_ROOT/std/console.sh"
+    import std/console
 }
 
 teardown() {

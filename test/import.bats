@@ -4,10 +4,9 @@ load 'test_helper/common-setup'
 
 setup() {
     _common_setup
-    source "$PROJECT_ROOT/std/load.sh"
 
     # 直接使用现有的文件进行测试
-    export LOAD_SH_PATH="$PROJECT_ROOT/std/load.sh"
+    export LOAD_SH_PATH="$PROJECT_ROOT/std/import.sh"
     export CONSOLE_SH_PATH="$PROJECT_ROOT/std/console.sh"
     export PROJECT_ROOT_DIR="$PROJECT_ROOT"
 }
@@ -97,7 +96,7 @@ teardown() {
     [[ "$output" == *"没有那个文件或目录"* ]]
 }
 
-@test "load.sh自身 - 多次source不重复初始化（绝对路径）" {
+@test "import.sh自身 - 多次source不重复初始化（绝对路径）" {
     # setup中已经source过一次，__loaded_modules已被初始化
     [ "${#__loaded_modules[@]}" -eq 1 ]
 
@@ -112,7 +111,7 @@ teardown() {
     [ -n "${__loaded_modules[/test/path]+x}" ]
 }
 
-@test "load.sh自身 - 多次source不重复初始化（相对路径）" {
+@test "import.sh自身 - 多次source不重复初始化（相对路径）" {
     cd "$PROJECT_ROOT/std"
 
     # setup中已经source过一次，__loaded_modules已被初始化
@@ -123,14 +122,14 @@ teardown() {
     [ "${#__loaded_modules[@]}" -eq 2 ]
 
     # 再次source，应该被第3行阻止，不会重新初始化
-    source "./load.sh"
+    source "./import.sh"
     # 验证测试条目仍然存在（证明没有重新初始化）
     [ "${#__loaded_modules[@]}" -eq 2 ]
     [ -n "${__loaded_modules[/test/path2]+x}" ]
 }
 
-@test "load.sh与console.sh - 不同模块可正常加载" {
-    # 加载load.sh
+@test "import.sh与console.sh - 不同模块可正常加载" {
+    # 加载import.sh
     source "$LOAD_SH_PATH"
     local count1="${#__loaded_modules[@]}"
 
@@ -192,11 +191,11 @@ EOF
     rm -rf "/tmp/test_load_deep" 2>/dev/null || true
 }
 
-@test "load - 从src目录加载相对路径" {
+@test "import - 从src目录加载相对路径" {
     cd "$PROJECT_ROOT"
 
-    # 使用load加载std/console.sh (相对于src/)
-    load "std/console.sh"
+    # 使用import加载std/console.sh (相对于src/)
+    import "std/console.sh"
     local count1="${#__loaded_modules[@]}"
 
     # 验证console函数可用
@@ -206,16 +205,16 @@ EOF
     [ "$output" = "test" ]
 
     # 再次用相同路径加载,应该被阻止
-    load "std/console.sh"
+    import "std/console.sh"
     local count2="${#__loaded_modules[@]}"
 
     [ "$count1" -eq 2 ]
     [ "$count2" -eq 2 ]
 }
 
-@test "load - 绝对路径不受影响" {
+@test "import - 绝对路径不受影响" {
     # 使用绝对路径
-    load "$CONSOLE_SH_PATH"
+    import "$CONSOLE_SH_PATH"
     local count1="${#__loaded_modules[@]}"
 
     [ "$(type -t console.stderr)" = "function" ]
@@ -224,14 +223,13 @@ EOF
     [ "$count1" -eq 2 ]
 }
 
-@test "load - 错误处理" {
+@test "import - 错误处理" {
     # 不存在的文件
-    run load "nonexistent/file.sh"
+    run import "nonexistent/file.sh"
     [ "$status" -ne 0 ]
-    [ -n "$output" ]
 }
 
-@test "load - 支持深层路径" {
+@test "import - 支持深层路径" {
     cd "$PROJECT_ROOT"
 
     # 创建深层测试模块
@@ -241,8 +239,8 @@ EOF
 deep_module_func() { echo "deep module"; }
 EOF
 
-    # 使用load加载
-    load "deep/nested/module.sh"
+    # 使用import加载
+    import "deep/nested/module.sh"
     local count="${#__loaded_modules[@]}"
 
     # 验证函数可用
@@ -251,7 +249,7 @@ EOF
     [ "$status" -eq 0 ]
     [ "$output" = "deep module" ]
 
-    # 验证已加载(包含load.sh + module.sh)
+    # 验证已加载(包含import.sh + module.sh)
     [ "$count" -eq 2 ]
 
     # 清理

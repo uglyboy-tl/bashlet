@@ -4,7 +4,6 @@ load 'test_helper/common-setup'
 
 setup() {
     _common_setup
-    source "$PROJECT_ROOT/std/load.sh"
 }
 
 teardown() {
@@ -14,6 +13,6 @@ teardown() {
 
 @test "bash4.sh - Bash 4+ 环境正常加载" {
     # 在当前环境（Bash 4+）中source应该成功
-    load "std/bash4.sh"
+    import "std/bash4.sh"
     [ "$?" -eq 0 ]
 }

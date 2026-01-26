@@ -4,7 +4,7 @@ load 'test_helper/common-setup'
 
 setup() {
     _common_setup
-    source "$PROJECT_ROOT/core/args.sh"
+    import core/args
     # 清理全局变量确保测试环境干净
     unset _ARGS_OPTS _ARGS_ARGS _ARGS_OPT_ARGS 2>/dev/null || true
 }
