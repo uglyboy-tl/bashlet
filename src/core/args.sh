@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+import std/bash4.sh
+import std/array.sh
+import std/map.sh
+
 args.parse() {
   declare -ga _ARGS_OPTS=()
   declare -ga _ARGS_ARGS=()
@@ -31,23 +35,18 @@ args.parse() {
 args.verify() {
   local -A seen=()
   for opt in "${_ARGS_OPTS[@]}"; do
-    [[ -v "seen[$opt]" ]] && return 1
+    map.contains seen "$opt" && return 1
     seen["$opt"]=1
   done
 }
 
-args.has() {
-  local -r opt="$1"
-  [[ " ${_ARGS_OPTS[*]} " == *" $opt "* ]]
-}
+args.has() { array.contains _ARGS_OPTS "$1"; }
 
 args.opt_index() { echo "${_ARGS_OPT_ARGS[$1]:-}"; }
 
-args.arg() {
-  [[ $1 -ge 0 && $1 -lt ${#_ARGS_ARGS[@]} ]] && echo "${_ARGS_ARGS[$1]}"
-}
+args.arg() { array.get _ARGS_ARGS "$1"; }
 
-args.count() { echo "${#_ARGS_ARGS[@]}"; }
+args.count() { array.len _ARGS_ARGS; }
 
 args.get() {
   local -r idx=$(args.opt_index "$1")
