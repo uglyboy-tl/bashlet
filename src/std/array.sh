@@ -24,3 +24,17 @@ array.type() {
     *) return 1 ;;
   esac
 }
+
+array.has_duplicates() {
+  local -r arr="$1"
+  local -A seen=()
+  local elem i len key
+  len=$(array.len "$arr")
+  for ((i=0; i<len; i++)); do
+    elem=$(eval 'echo ${'"$arr"'['"$i"']}')
+    key="${elem:-__EMPTY__}"
+    [[ -v "seen[$key]" ]] && return 0
+    seen["$key"]=1
+  done
+  return 1
+}
