@@ -11,8 +11,8 @@ teardown() {
     unset __loaded_modules 2>/dev/null || true
 }
 
-@test "bash4.sh - Bash 4+ 环境正常加载" {
-    # 在当前环境（Bash 4+）中source应该成功
+@test "bash4.sh - Bash 4.3+ 环境正常加载" {
+    # 在当前环境（Bash 4.3+）中source应该成功
     import "std/bash4.sh"
     [ "$?" -eq 0 ]
 }

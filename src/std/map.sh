@@ -1,10 +1,16 @@
 #!/usr/bin/env bash
 
-map.len() { eval 'echo ${#'"$1"'[@]}'; }
+map.len() {
+  local -n ref="$1"
+  echo "${#ref[@]}"
+}
 
-map.contains() { eval '[[ -v '"$1"'["'"$2"'"] ]]'; }
+map.contains() {
+  local -n ref="$1"
+  [[ -v "ref[$2]" ]]
+}
 
 map.get() {
-  local -r arr="$1" idx="$2"
-  eval '[[ -v '"$arr"'["'"$idx"'"] ]]' && eval 'echo ${'"$arr"'["'"$idx"'"]}' || return 1
+  local -n ref="$1"
+  [[ -v "ref[$2]" ]] && echo "${ref[$2]}" || return 1
 }
