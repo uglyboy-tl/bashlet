@@ -33,22 +33,19 @@ args.parse() {
 }
 
 args.verify() {
-  local -A seen=()
-  for opt in "${_ARGS_OPTS[@]}"; do
-    map.contains seen "$opt" && return 1
-    seen["$opt"]=1
-  done
+  array.has_duplicates _ARGS_OPTS && return 1
+  return 0
 }
 
 args.has() { array.contains _ARGS_OPTS "$1"; }
-
-args.opt_index() { echo "${_ARGS_OPT_ARGS[$1]:-}"; }
 
 args.arg() { array.get _ARGS_ARGS "$1"; }
 
 args.count() { array.len _ARGS_ARGS; }
 
+args.opt_index() { echo "${_ARGS_OPT_ARGS[$1]:-}"; }
+
 args.get() {
-  local -r idx=$(args.opt_index "$1")
-  [[ $idx ]] && args.arg "$idx"
+  local -r i=$(args.opt_index "$1")
+  [[ $i ]] && args.arg "$i"
 }
