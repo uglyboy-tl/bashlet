@@ -48,56 +48,56 @@ teardown() {
 	[ "$output" = "line1 line2 line3" ]
 }
 
-# ========== console.format 测试 ==========
+# ========== console.align 测试 ==========
 
-@test "console.format - 基本格式化输出" {
-	run console.format 20 "test" "desc"
+@test "console.align - 基本格式化输出" {
+	run console.align 20 "test" "desc"
 	[ "$status" -eq 0 ]
 	# test (4字符) + 16 空格 = 20字符 + desc (4字符) + 换行符 = 25字符
 	# 但在 bats 中 ${#output} 计算字符数 = 24 (不包含换行符)
 	[ "${#output}" -eq 24 ]
 }
 
-@test "console.format - 文本长度等于宽度不填充" {
-	run console.format 4 "test" "desc"
+@test "console.align - 文本长度等于宽度不填充" {
+	run console.align 4 "test" "desc"
 	[ "$status" -eq 0 ]
 	[ "$output" = "testdesc" ]
 }
 
-@test "console.format - 文本长度超过宽度" {
-	run console.format 3 "test" "desc"
+@test "console.align - 文本长度超过宽度" {
+	run console.align 3 "test" "desc"
 	[ "$status" -eq 0 ]
 	[ "$output" = "testdesc" ]
 }
 
-@test "console.format - 空文本处理" {
-	run console.format 10 "" "desc"
+@test "console.align - 空文本处理" {
+	run console.align 10 "" "desc"
 	[ "$status" -eq 0 ]
 	# 10空格 + desc
 	[ "${#output}" -eq 14 ]  # 10 + 4 (desc)
 }
 
-@test "console.format - 空描述处理" {
-	run console.format 10 "test" ""
+@test "console.align - 空描述处理" {
+	run console.align 10 "test" ""
 	[ "$status" -eq 0 ]
 	# test (4字符) + 6空格 = 10字符 + 换行符 = 11字节
 	# bats ${#output} 计算字符数 = 10
 	[ "${#output}" -eq 10 ]
 }
 
-@test "console.format - ANSI 转义码不被计入宽度" {
+@test "console.align - ANSI 转义码不被计入宽度" {
 	local red=$'\x1b[31m'    # 5字节
 	local reset=$'\x1b[0m'   # 4字节
 
 	# width=10, 可见字符="test"(4), padding=6
 	# 输出: red(5) + test(4) + reset(4) + 空格(6) + desc(4) + 换行(1)
 	#      = 5+4+4+6+4+1 = 24 字节
-	run console.format 10 "${red}test${reset}" "desc"
+	run console.align 10 "${red}test${reset}" "desc"
 	[ "$status" -eq 0 ]
 	[ "${#output}" -eq 23 ]  # 24-1 (不含换行符)
 }
 
-@test "console.format - 多个 ANSI 转义码正确处理" {
+@test "console.align - 多个 ANSI 转义码正确处理" {
 	local red=$'\x1b[31m'    # 5字节
 	local green=$'\x1b[32m'  # 5字节
 	local reset=$'\x1b[0m'   # 4字节
@@ -105,55 +105,55 @@ teardown() {
 	# width=10, 可见字符="test"(4), padding=6
 	# 输出: red(5) + te(2) + green(5) + st(2) + reset(4) + 空格(6) + desc(4) + 换行(1)
 	#      = 5+2+5+2+4+6+4+1 = 29 字节
-	run console.format 10 "${red}te${green}st${reset}" "desc"
+	run console.align 10 "${red}te${green}st${reset}" "desc"
 	[ "$status" -eq 0 ]
 	[ "${#output}" -eq 28 ]  # 29-1 (不含换行符)
 }
 
-@test "console.format - 长数字 ANSI 参数处理" {
+@test "console.align - 长数字 ANSI 参数处理" {
 	local color=$'\x1b[38;2;255;0;0m'  # 15字节
 	local reset=$'\x1b[0m'             # 4字节
 
 	# width=10, 可见字符="test"(4), padding=6
 	# 输出: color(15) + test(4) + reset(4) + 空格(6) + desc(4) + 换行(1)
 	#      = 15+4+4+6+4+1 = 34 字节
-	run console.format 10 "${color}test${reset}" "desc"
+	run console.align 10 "${color}test${reset}" "desc"
 	[ "$status" -eq 0 ]
 	[ "${#output}" -eq 33 ]  # 34-1 (不含换行符)
 }
 
-@test "console.format - 未闭合的 ANSI 转义码" {
+@test "console.align - 未闭合的 ANSI 转义码" {
 	local red=$'\x1b[31m'  # 5字节 (无重置码)
 
 	# width=10, 可见字符="test"(4), padding=6
 	# 输出: red(5) + test(4) + 空格(6) + desc(4) + 换行(1)
 	#      = 5+4+6+4+1 = 20 字节
-	run console.format 10 "${red}test" "desc"
+	run console.align 10 "${red}test" "desc"
 	[ "$status" -eq 0 ]
 	[ "${#output}" -eq 19 ]  # 20-1 (不含换行符)
 }
 
-@test "console.format - 零宽度边界" {
-	run console.format 0 "test" "desc"
+@test "console.align - 零宽度边界" {
+	run console.align 0 "test" "desc"
 	[ "$status" -eq 0 ]
 	[ "$output" = "testdesc" ]
 }
 
-@test "console.format - 宽度为1" {
-	run console.format 1 "t" "desc"
+@test "console.align - 宽度为1" {
+	run console.align 1 "t" "desc"
 	[ "$status" -eq 0 ]
 	[ "${#output}" -eq 5 ]  # t + desc + 换行符
 }
 
-@test "console.format - 非常大的宽度" {
-	run console.format 1000 "test" "desc"
+@test "console.align - 非常大的宽度" {
+	run console.align 1000 "test" "desc"
 	[ "$status" -eq 0 ]
 	# test + 996空格 + desc + 换行符
 	[ "${#output}" -eq 1004 ]
 }
 
-@test "console.format - 多字节字符处理" {
-	run console.format 10 "测试" "desc"
+@test "console.align - 多字节字符处理" {
+	run console.align 10 "测试" "desc"
 	[ "$status" -eq 0 ]
 	# 2中文字符(4字节) + 6空格 + desc + 换行符
 	# 注意: ${#}计算字符数，但 printf 格式化按字节
@@ -161,17 +161,249 @@ teardown() {
 	[ "${#output}" -ge 11 ]
 }
 
-@test "console.format - 特殊字符在文本中" {
-	run console.format 10 "test\$VAR" "desc"
+@test "console.align - 特殊字符在文本中" {
+	run console.align 10 "test\$VAR" "desc"
 	[ "$status" -eq 0 ]
 	# test\$VAR (8) + 2空格 + desc (4) + 换行符 (1) = 15字节
 	# bats ${#output} 计算字符数 = 14
 	[ "${#output}" -eq 14 ]
 }
 
-@test "console.format - 换行符在描述中" {
-	run console.format 10 "test" "desc
+@test "console.align - 换行符在描述中" {
+	run console.align 10 "test" "desc
 with newline"
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"desc"* ]]
+}
+
+# ========== console.display_width 测试 ==========
+
+@test "console.display_width - 纯英文文本" {
+	run console.display_width "hello"
+	[ "$status" -eq 0 ]
+	[ "$output" = "5" ]
+}
+
+@test "console.display_width - 纯中文文本" {
+	run console.display_width "中文"
+	[ "$status" -eq 0 ]
+	[ "$output" = "4" ]
+}
+
+@test "console.display_width - 中英文混排" {
+	run console.display_width "hello中文"
+	[ "$status" -eq 0 ]
+	[ "$output" = "9" ]
+}
+
+@test "console.display_width - ANSI 颜色码过滤" {
+	local red=$'\x1b[31m'
+	local reset=$'\x1b[0m'
+	run console.display_width "${red}Red${reset}"
+	[ "$status" -eq 0 ]
+	[ "$output" = "3" ]
+}
+
+@test "console.display_width - 空字符串" {
+	run console.display_width ""
+	[ "$status" -eq 0 ]
+	[ "$output" = "0" ]
+}
+
+@test "console.display_width - 多个 ANSI 码" {
+	local red=$'\x1b[31m'
+	local bold=$'\x1b[1m'
+	local reset=$'\x1b[0m'
+	run console.display_width "${red}${bold}text${reset}"
+	[ "$status" -eq 0 ]
+	[ "$output" = "4" ]
+}
+
+@test "console.display_width - 复杂 ANSI 码" {
+	local color=$'\x1b[38;2;255;0;0m'
+	local reset=$'\x1b[0m'
+	run console.display_width "${color}colored${reset}"
+	[ "$status" -eq 0 ]
+	[ "$output" = "7" ]
+}
+
+@test "console.display_width - 多行文本" {
+	run console.display_width "line1
+line2"
+	[ "$status" -eq 0 ]
+	[ "$output" = "11" ]  # line1(5) + 换行符(1) + line2(5)
+}
+
+@test "console.display_width - 特殊字符" {
+	run console.display_width "test\$VAR"
+	[ "$status" -eq 0 ]
+	[ "$output" = "8" ]
+}
+
+@test "console.display_width - 空字符串 → 0" {
+	run console.display_width ""
+	[ "$status" -eq 0 ]
+	[ "$output" = "0" ]
+}
+
+@test "console.display_width - 纯 ASCII 字符串 → 字符数" {
+	run console.display_width "hello world"
+	[ "$status" -eq 0 ]
+	[ "$output" = "11" ]
+}
+
+@test "console.display_width - 纯 CJK 字符串 → 字符数 × 2" {
+	run console.display_width "中文测试"
+	[ "$status" -eq 0 ]
+	[ "$output" = "8" ]
+}
+
+@test "console.display_width - 混合字符串 (ASCII + CJK) → 正确宽度" {
+	run console.display_width "hello中文world"
+	[ "$status" -eq 0 ]
+	[ "$output" = "14" ]  # hello(5) + 中文(4) + world(5)
+}
+
+@test "console.display_width - 带 ANSI 转义序列 → 过滤 ANSI 后计算宽度" {
+	local red=$'\x1b[31m'
+	local reset=$'\x1b[0m'
+	run console.display_width "${red}hello${reset}"
+	[ "$status" -eq 0 ]
+	[ "$output" = "5" ]
+}
+
+@test "console.display_width - ANSI + CJK 混合 → 正确过滤和计算" {
+	local red=$'\x1b[31m'
+	local green=$'\x1b[32m'
+	local reset=$'\x1b[0m'
+	run console.display_width "${red}中${green}文${reset}hello"
+	[ "$status" -eq 0 ]
+	[ "$output" = "9" ]  # 中文(4) + hello(5)
+}
+
+@test "console.display_width - 边界条件 - 单个 ASCII 字符" {
+	run console.display_width "a"
+	[ "$status" -eq 0 ]
+	[ "$output" = "1" ]
+}
+
+@test "console.display_width - 边界条件 - 单个 CJK 字符" {
+	run console.display_width "中"
+	[ "$status" -eq 0 ]
+	[ "$output" = "2" ]
+}
+
+@test "console.display_width - 边界条件 - 长字符串 (1000+ 字符)" {
+	# 创建 1000 个 ASCII 字符的字符串
+	local long_string=""
+	for ((i=0; i<1000; i++)); do
+		long_string+="a"
+	done
+	run console.display_width "$long_string"
+	[ "$status" -eq 0 ]
+	[ "$output" = "1000" ]
+}
+
+@test "console.display_width - 边界条件 - 多个 ANSI 序列" {
+	local red=$'\x1b[31m'
+	local bold=$'\x1b[1m'
+	local underline=$'\x1b[4m'
+	local reset=$'\x1b[0m'
+	run console.display_width "${red}${bold}${underline}text${reset}"
+	[ "$status" -eq 0 ]
+	[ "$output" = "4" ]
+}
+
+@test "console.display_width - 边界条件 - 空 ANSI 序列" {
+	local empty_ansi=$'\x1b[m'
+	run console.display_width "${empty_ansi}hello"
+	[ "$status" -eq 0 ]
+	[ "$output" = "5" ]
+}
+
+# ========== console.align 中英文对齐增强测试 ==========
+
+@test "console.align - 中文本本正确对齐" {
+	run console.align 10 "中文" "desc"
+	[ "$status" -eq 0 ]
+	# 中文占 4 列，应填充 6 空格
+	[ "${#output}" -eq 12 ]  # 中文(2字符) + 6空格 + desc(4字符)
+}
+
+@test "console.align - 中英文混排正确对齐" {
+	run console.align 15 "hello中文" "desc"
+	[ "$status" -eq 0 ]
+	# hello中文占 9 列(5+4)，应填充 6 空格
+	[ "${#output}" -eq 17 ]  # hello中文(7字符) + 6空格 + desc(4字符)
+}
+
+@test "console.align - 带 ANSI 码的中文正确对齐" {
+	local red=$'\x1b[31m'
+	local reset=$'\x1b[0m'
+	run console.align 10 "${red}中文${reset}" "desc"
+	[ "$status" -eq 0 ]
+	# ANSI码被过滤，中文占 4 列，填充 6 空格
+	[ "${#output}" -eq 21 ]  # red(ANSI) + 中文(2字符) + reset(ANSI) + 6空格 + desc(4字符)
+}
+
+@test "console.align - 混合 ANSI 码和中文对齐" {
+	local red=$'\x1b[31m'
+	local green=$'\x1b[32m'
+	local reset=$'\x1b[0m'
+	run console.align 12 "${red}中${green}文${reset}" "desc"
+	[ "$status" -eq 0 ]
+	# ANSI码被过滤，中文占 4 列，填充 8 空格
+	[ "${#output}" -eq 28 ]  # red + 中 + green + 文 + reset + 8空格 + desc
+}
+
+@test "console.align - 长中文字符串截断处理" {
+	run console.align 6 "中文测试" "desc"
+	[ "$status" -eq 0 ]
+	# 中文测试占 8 列，超过宽度 6，不填充
+	[ "${#output}" -eq 8 ]  # 中文测试(4字符) + desc(4字符)
+}
+
+@test "console.align - 精确宽度中文对齐" {
+	run console.align 8 "四个字" "desc"
+	[ "$status" -eq 0 ]
+	# 四个字占 6 列，填充 2 空格
+	[ "${#output}" -eq 9 ]  # 四个字(3字符) + 2空格 + desc(4字符)
+}
+
+@test "console.align - 多个描述参数" {
+	run console.align 20 "test" "desc1" "desc2" "desc3"
+	[ "$status" -eq 0 ]
+	# test(4) + 16空格 + desc1 desc2 desc3(17) = 37
+	[ "${#output}" -eq 37 ]
+	[[ "$output" == *"desc1 desc2 desc3" ]]
+}
+
+@test "console.align - 3 个参数（2个描述）" {
+	run console.align 15 "text" "desc1" "desc2"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"desc1 desc2" ]]
+}
+
+@test "console.align - 4 个参数（3个描述）" {
+	run console.align 20 "测试" "a" "b" "c"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"a b c" ]]
+}
+
+@test "console.align - 多参数中英文混合" {
+	run console.align 25 "中文文本" "English" "混合" "Mixed"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"English 混合 Mixed" ]]
+}
+
+@test "console.align - 多参数含 ANSI 码" {
+	local red=$'\x1b[31m'
+	local green=$'\x1b[32m'
+	local reset=$'\x1b[0m'
+	local desc1="${red}desc1${reset}"
+	local desc2="${green}desc2${reset}"
+	run console.align 25 "text" "$desc1" "$desc2"
+	[ "$status" -eq 0 ]
+	# text(4) + padding(21空格) + desc1(14) + 空格(1) + desc2(14) = 54 字符
+	[ "${#output}" -eq 54 ]
 }
