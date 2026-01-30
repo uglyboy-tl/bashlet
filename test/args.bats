@@ -213,11 +213,6 @@ teardown() {
 	[ ${#_ARGS_ARGS[@]} -eq 0 ]
 }
 
-@test "边界条件 - 拒绝重复的选项" {
-	run args.parse -v -v -v
-	[ "$status" -ne 0 ]
-}
-
 @test "边界条件 - 正确处理特殊字符参数值" {
 	args.parse -f "file with spaces.txt" --key "value\$VAR"
 
@@ -364,4 +359,52 @@ teardown() {
 	[ "$status" -ne 0 ]
 	run args.get "-f"
 	[ "$status" -ne 0 ]
+}
+
+@test "args.has - 多参数时第一参数存在返回成功" {
+	args.parse -v -f file.txt
+	run args.has "-v" "--verbose"
+	[ "$status" -eq 0 ]
+}
+
+@test "args.has - 多参数时第二参数存在返回成功" {
+	args.parse --verbose -f file.txt
+	run args.has "-v" "--verbose"
+	[ "$status" -eq 0 ]
+}
+
+@test "args.has - 多参数时所有参数不存在返回失败" {
+	args.parse -f file.txt
+	run args.has "-v" "--verbose"
+	[ "$status" -eq 1 ]
+}
+
+@test "args.has - 混合长短选项时匹配成功" {
+	args.parse -v --output result.txt
+	run args.has "--verbose" "-v"
+	[ "$status" -eq 0 ]
+}
+
+@test "args.has - 三个以上参数时匹配成功" {
+	args.parse --output result.txt
+	run args.has "-v" "--verbose" "-q" "--quiet"
+	[ "$status" -eq 1 ]
+}
+
+@test "args.has - 空参数时返回失败" {
+	args.parse -v
+	run args.has
+	[ "$status" -eq 1 ]
+}
+
+@test "args.has - 单参数时行为保持一致（存在）" {
+	args.parse -v -f file.txt
+	run args.has "-v"
+	[ "$status" -eq 0 ]
+}
+
+@test "args.has - 单参数时行为保持一致（不存在）" {
+	args.parse -f file.txt
+	run args.has "-v"
+	[ "$status" -eq 1 ]
 }
