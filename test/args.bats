@@ -335,7 +335,7 @@ teardown() {
 	[ $(args.count) -eq 1 ]
 }
 
-@test "组合参数 - 组合参数后不存储选项参数值" {
+@test "组合参数 - 组合参数后存储选项参数值" {
 	args.parse -vf file.txt
 
 	# 检查组合参数分解
@@ -353,12 +353,12 @@ teardown() {
 	[ "${_ARGS_ARGS[0]}" = "file.txt" ]
 	[ $(args.count) -eq 1 ]
 
-	# 检查 _ARGS_OPT_ARGS 为空（组合选项无参数值）
-	[ ${#_ARGS_OPT_ARGS[@]} -eq 0 ]
+	# 检查 _ARGS_OPT_ARGS 不为空（组合选项无参数值）
+	[ ${#_ARGS_OPT_ARGS[@]} -eq 1 ]
 	run args.get "-v"
 	[ "$status" -ne 0 ]
 	run args.get "-f"
-	[ "$status" -ne 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "args.has - 多参数时第一参数存在返回成功" {
@@ -407,4 +407,115 @@ teardown() {
 	args.parse -f file.txt
 	run args.has "-v"
 	[ "$status" -eq 1 ]
+}
+
+# ============ args.verify 测试用例 ============
+
+setup_verify() {
+	unset _ARGS_MYAPP_OPTIONS _ARGS_MYAPP_OPTIONS_SWITCH _ARGS_MYAPP_OPTIONS_TYPE 2>/dev/null || true
+	args.new_options "myapp"
+	args.add_options "verbose" "v" "显示详细输出"
+	args.add_options "file" "f" "指定输入文件" "FILE"
+	args.add_options "output" "o" "指定输出文件" "FILE"
+	args.add_options "quiet" "q" "安静模式"
+	args.add_options "help" "h" "显示帮助信息"
+}
+
+@test "args.verify - 已注册选项验证通过" {
+	setup_verify
+	args.parse -v -f input.txt
+	args.verify
+	[ $? -eq 0 ]
+}
+
+@test "args.verify - 未注册选项验证失败" {
+	setup_verify
+	args.parse -x input.txt
+	run args.verify
+	[ "$status" -ne 0 ]
+}
+
+@test "args.verify - 多个未注册选项全部报错" {
+	setup_verify
+	args.parse -x -y input.txt
+	run args.verify
+	[ "$status" -ne 0 ]
+}
+
+@test "args.verify - 重复短选项检测" {
+	setup_verify
+	args.parse -v -v
+	run args.verify
+	[ "$status" -ne 0 ]
+}
+
+@test "args.verify - 重复长选项检测" {
+	setup_verify
+	args.parse --verbose --verbose
+	run args.verify
+	[ "$status" -ne 0 ]
+}
+
+@test "args.verify - 短选项和长选项互斥检测" {
+	setup_verify
+	args.parse -v --verbose
+	run args.verify
+	[ "$status" -ne 0 ]
+}
+
+@test "args.verify - 不同选项可以重复使用" {
+	setup_verify
+	args.parse -v -f file.txt -q -o output.txt
+	args.verify
+	[ $? -eq 0 ]
+}
+
+@test "args.verify - 需要参数的选项未提供参数失败" {
+	setup_verify
+	args.parse -f
+	run args.verify
+	[ "$status" -ne 0 ]
+}
+
+@test "args.verify - 需要参数的选项提供参数通过" {
+	setup_verify
+	args.parse -f input.txt
+	args.verify
+	[ $? -eq 0 ]
+}
+
+@test "args.verify - 不需要参数的选项有参数也通过（无法判断是选项参数还是位置参数）" {
+	setup_verify
+	args.add_options "flag" "" "标志" "NONE"
+	args.parse --flag extra
+	run args.verify
+	[ "$status" -eq 0 ]
+}
+
+@test "args.verify - 组合参数验证通过" {
+	setup_verify
+	args.parse -vqf input.txt
+	args.verify
+	[ $? -eq 0 ]
+}
+
+@test "args.verify - 组合参数包含未注册选项失败" {
+	setup_verify
+	args.parse -vx input.txt
+	run args.verify
+	[ "$status" -ne 0 ]
+}
+
+@test "args.verify - 混合短长选项验证通过" {
+	setup_verify
+	args.parse --verbose -f input.txt --output result.txt
+	args.verify
+	[ $? -eq 0 ]
+}
+
+@test "args.verify - -- 分隔符后参数不验证" {
+	setup_verify
+	args.parse -v -- input.txt -x
+	args.verify
+	[ $? -eq 0 ]
 }

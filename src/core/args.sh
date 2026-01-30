@@ -67,11 +67,11 @@ args.parse() {
 	for arg in "$@"; do
 		if [[ $arg == '--' ]]; then
 			end=1
+			last=""
 		elif (( !end )) && [[ $arg =~ ^- ]]; then
 			if [[ $arg =~ ^-[a-zA-Z]{2,}$ ]]; then
 				local i c="${arg:1}"
-				for ((i=0; i<${#c}; i++)); do _ARGS_OPTS+=("-${c:i:1}"); done
-				last=""
+				for ((i=0; i<${#c}; i++)); do last="-${c:i:1}";_ARGS_OPTS+=("$last"); done
 			else
 				_ARGS_OPTS+=("$arg")
 				last="$arg"
@@ -82,34 +82,35 @@ args.parse() {
 		fi
 	done
 
-	# args.verify
-	# ( args.has "-h" "--help" ) && args.show_help && exit 0 || return 0
 	return 0
 }
 
 args.verify() {
-	local -r prefix="*-"
 	local -n switch=$(args.options_switch)
 	local -n types=$(args.options_type)
-
-	#log.debug "$(declare -p _ARGS_OPTS)"
-	#log.debug "$(declare -p _ARGS_ARGS)"
-  #log.debug "$(declare -p _ARGS_OPT_ARGS)"
-
+	local -n valid_options=$(args.options)
 	for o in "${_ARGS_OPTS[@]}"; do
-		local opt="${o##$prefix}"
-		array.contains $(args.options) $opt || { log.error "未知选项: \"$o\"" && args.show_help && exit 1; }
+		local opt="${o##*-}"
+		array.contains valid_options $opt || { log.error "未知选项: \"$o\""; return 1; }
 		local another=${switch[$opt]}
-		args.has "-$another" "--$another" && log.error "重复选项" && exit 1
-		[[ $o =~ ^-[a-zA-Z]$ ]] && short=$opt && opt=$another || short=$another
-		[[ ! -z ${_ARGS_OPT_ARGS[$o]+x} ]] && [[ ${types[$opt]} == "NONE" ]] && log.error "选项 $o 不支持参数" && exit 1;
+		args.has "-$another" "--$another" && log.error "重复选项" && return 1
+		[[ $o =~ ^-[a-zA-Z]$ ]] && opt=$another
+		case ${types[$opt]} in
+			"NONE") unset _ARGS_OPT_ARGS[$o] ;;
+			*) [[ -z ${_ARGS_OPT_ARGS[$o]+x} ]] && log.error "选项 $o 需要参数" && return 1 ;;
+		esac
 	done
-	array.has_duplicates _ARGS_OPTS && log.error "重复选项" && exit 1 || return 0
+	array.has_duplicates _ARGS_OPTS && log.error "重复选项" && return 1
+	declare -ga _ARGS_FINAL_ARGS=("${_ARGS_ARGS[@]}")
+	for value in "${_ARGS_OPT_ARGS[@]}"; do
+		unset _ARGS_FINAL_ARGS[$value]
+	done
 }
 
 args.has() {
-	for opt in "$@"; do
-		array.contains _ARGS_OPTS "$opt" && return 0
+	local o
+	for o in "$@"; do
+		array.contains _ARGS_OPTS "$o" && return 0
 	done
 	return 1
 }
@@ -118,6 +119,8 @@ args.get() {
 	local -r i=$(args.opt_index "$1")
 	[[ $i ]] && args.arg "$i"
 }
+
+args.args() { echo "_ARGS_FINAL_ARGS"; }
 
 args.count() { array.len _ARGS_ARGS; }
 

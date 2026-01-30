@@ -86,7 +86,7 @@ run_tests() {
 # 获取所有测试文件列表
 list_test_files() {
 	cd "$PROJECT_ROOT/test"
-	find . -name "*.bats" -not -path "./bats/*" -not -path "./test_bats/*" | sort
+	find . -name "*.bats" -not -path "./bats/*" -not -path "./test_bats/*"  -not -path "./test_helper/*" | sort
 }
 
 # 显示测试统计
@@ -136,47 +136,18 @@ main() {
 	help.seccription.set "运行 bashlet 项目的 Bats 测试"
 
 	args.parse "$@"
-	args.verify
+	args.verify || { args.show_help; exit 1; }
 	args.has "-h" "--help" && args.show_help && exit 0
-
-	# 解析参数
-	while [[ $# -gt 0 ]]; do
-		case "$1" in
-			-f|--filter)
-				FILTER_PATTERN="$2"
-				shift 2
-				;;
-			-j|--jobs)
-				JOBS="$2"
-				shift 2
-				;;
-			-v|--verbose)
-				VERBOSE="true"
-				shift
-				;;
-			-t|--tap)
-				TAP_FORMAT="true"
-				shift
-				;;
-			-c|--count)
-				COUNT_ONLY="true"
-				shift
-				;;
-			*)
-				TEST_TARGET="$1"
-				shift
-				;;
-		esac
-	done
+	args.has "-c" "--count" && show_test_stats && exit 0
+	args.has "-v" "--verbose" && VERBOSE="true"
+	args.has "-t" "--tap" && TAP_FORMAT="true"
+	args.has "-f" "--filter" && FILTER_PATTERN=$(args.get "-f")$(args.get "--filter")
+	args.has "-j" "--jobs" && JOBS=$(args.get "-j")$(args.get "--jobs")
+	declare -n args=$(args.args)
+	[[ ${#args[@]} -ne 0 ]] && TEST_TARGET="${args[@]}"
 
 	# 检查Bats
 	check_bats
-
-	# 如果是统计模式
-	if [[ "$COUNT_ONLY" == "true" ]]; then
-		show_test_stats
-		exit 0
-	fi
 
 	# 运行测试
 	run_tests "$TEST_TARGET"
