@@ -70,7 +70,7 @@ run_tests() {
 	if eval "bats $bats_args $test_path"; then
 		local exit_code=$?
 		if [[ $exit_code -eq 0 ]]; then
-			log.success "所有测试通过!"
+			log.success "执行成功!"
 			return 0
 		else
 			log.error "测试失败，退出码: $exit_code"
@@ -110,12 +110,8 @@ show_test_stats() {
 
 # 主函数
 main() {
-	local FILTER_PATTERN=""
-	local JOBS="1"
-	local VERBOSE="false"
-	local TAP_FORMAT="false"
-	local COUNT_ONLY="false"
-	local TEST_TARGET="."
+	help.name.set "测试运行器"
+	help.seccription.set "运行 bashlet 项目的 Bats 测试"
 
 	args.new_options "main"
 	args.add_options "filter" "f" "只运行匹配模式的测试" "STRING"
@@ -132,19 +128,17 @@ main() {
 	args.add_options "notice" '测试应该在项目的 test/ 目录下运行'
 	args.add_options "notice" '测试文件必须使用 .bats 扩展名'
 
-	help.name.set "测试运行器"
-	help.seccription.set "运行 bashlet 项目的 Bats 测试"
-
 	args.parse "$@"
 	args.verify || { args.show_help; exit 1; }
 	args.has "-h" "--help" && args.show_help && exit 0
-	args.has "-c" "--count" && show_test_stats && exit 0
-	args.has "-v" "--verbose" && VERBOSE="true"
-	args.has "-t" "--tap" && TAP_FORMAT="true"
-	args.has "-f" "--filter" && FILTER_PATTERN=$(args.get "-f")$(args.get "--filter")
-	args.has "-j" "--jobs" && JOBS=$(args.get "-j")$(args.get "--jobs")
+	#args.has "-c" "--count" && show_test_stats && exit 0
+	args.has "-c" "--count" && COUNT_ONLY="true" || COUNT_ONLY="false"
+	args.has "-v" "--verbose" && VERBOSE="true" || VERBOSE="false"
+	args.has "-t" "--tap" && TAP_FORMAT="true" || TAP_FORMAT="false"
+	FILTER_PATTERN=$(args.get "-f" "--filter" 2>/dev/null) || FILTER_PATTERN=""
+	JOBS=$(args.get "-j" "--jobs" 2>/dev/null) || JOBS="1"
 	declare -n args=$(args.args)
-	[[ ${#args[@]} -ne 0 ]] && TEST_TARGET="${args[@]}"
+	[[ ${#args[@]} -ne 0 ]] && TEST_TARGET="${args[@]}" ||TEST_TARGET="."
 
 	# 检查Bats
 	check_bats
