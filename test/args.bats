@@ -436,6 +436,18 @@ setup_verify() {
 	[ $? -eq 0 ]
 }
 
+# ============ args.name.set / args.description.set 测试 ============
+
+@test "args.name.set - 设置脚本名称" {
+	args.name.set "myscript"
+	[ "$_SCRIPT_NAME" = "myscript" ]
+}
+
+@test "args.description.set - 设置脚本描述" {
+	args.description.set "A test script"
+	[ "$_SCRIPT_DESC" = "A test script" ]
+}
+
 # ============ args.new_options 测试 ============
 
 @test "args.new_options - 创建选项组并设置当前选项" {

@@ -5,6 +5,10 @@ import std/map
 import core/log
 import core/help
 
+args.name.set() { _SCRIPT_NAME=$1; }
+
+args.description.set() { _SCRIPT_DESC=$1; }
+
 args.new_options() {
 	local prefix="_ARGS_${1^^}"
 	_ARGS_CURRENT_OPTIONS="$prefix"
