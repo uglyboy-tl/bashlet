@@ -7,35 +7,38 @@ import std/array
 import std/map
 
 _SCRIPT_NAME=${0##*/}
+: ${_SCRIPT_DISPLAY:-$_SCRIPT_NAME}
 
 help.title() {
-	[[ -v _SCRIPT_DESC ]] && console.stderr "$Bold$_SCRIPT_NAME$NC - $Italics$_SCRIPT_DESC$NC" || console.stderr "$Bold$_SCRIPT_NAME$NC"
+	local _title="$_SCRIPT_DISPLAY"
+	[[ -v _SCRIPT_DESC ]] && _title="$_title - $_SCRIPT_DESC"
+	console.stderr "${Bold}${_title}${NC}"
 }
 
 help.usage.oneline() {
 	local _has_opts=$1
 	local _has_args=$2
-	local _usage_line="Usage: $Italics$_SCRIPT_NAME$NC"
+	local _usage_line="${BRIGHT_BLUE}Usage:${NC} ${BRIGHT_CYAN}$_SCRIPT_NAME${NC}"
 
-	[[ $_has_opts -gt 0 ]] && _usage_line+=" [OPTIONS]"
-	[[ $_has_args -gt 0 ]] && _usage_line+=" [ARGUMENTS]"
+	[[ $_has_opts -gt 0 ]] && _usage_line+=" ${BRIGHT_YELLOW}[OPTIONS]${NC}"
+	[[ $_has_args -gt 0 ]] && _usage_line+=" ${BRIGHT_YELLOW}[ARGUMENTS]${NC}"
 
 	console.stderr "$_usage_line"
 }
 
 help.usage() {
-	local _usage_line="Usage: $Italics$_SCRIPT_NAME"
+	local _usage_line="${BRIGHT_BLUE}Usage:${NC} ${BRIGHT_CYAN}$_SCRIPT_NAME${NC}"
 
-	[[ -n ${4:-} ]] && _usage_line="${_usage_line} <subcommand>"
-	(( ${2:-0} )) && _usage_line="${_usage_line} [OPTIONS]"
-	(( ${3:-0} )) && _usage_line="${_usage_line} [ARGUMENTS]"
+	[[ -n ${4:-} ]] && _usage_line="${_usage_line} ${BRIGHT_MAGENTA}<subcommand>${NC}"
+	(( ${2:-0} )) && _usage_line="${_usage_line} ${BRIGHT_YELLOW}[OPTIONS]${NC}"
+	(( ${3:-0} )) && _usage_line="${_usage_line} ${BRIGHT_YELLOW}[ARGUMENTS]${NC}"
 
-	console.stderr "$_usage_line$NC"
+	console.stderr "$_usage_line"
 }
 
 help.section() {
 	echo ""
-	console.stderr "$Bold$1$NC:"
+	console.stderr "${Bold}${BRIGHT_BLUE}$1${NC}:"
 }
 
 help.section.items() {
@@ -49,13 +52,13 @@ help.section.items() {
 	(( _max_width += 4 ))
 
 	for _key in "${_keys[@]}"; do
-		console.align "$_max_width" "  $Bold$_key$NC" "${_items_ref[$_key]}"
+		console.align "$_max_width" "  ${BRIGHT_CYAN}$_key${NC}" "${_items_ref[$_key]}"
 	done
 }
 
 help.footer() {
 	echo ""
-	console.stderr "Use '$Italics$_SCRIPT_NAME <subcommand> --help$NC' for subcommand help"
+	console.stderr "${BRIGHT_BLACK}Use '${BRIGHT_WHITE}$_SCRIPT_NAME <subcommand> --help${BRIGHT_BLACK}' for subcommand help${NC}"
 }
 
 help.show() {

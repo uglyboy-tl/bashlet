@@ -438,9 +438,9 @@ setup_verify() {
 
 # ============ args.name.set / args.description.set 测试 ============
 
-@test "args.name.set - 设置脚本名称" {
+@test "args.name.set - 设置显示名称" {
 	args.name.set "myscript"
-	[ "$_SCRIPT_NAME" = "myscript" ]
+	[ "$_SCRIPT_DISPLAY" = "myscript" ]
 }
 
 @test "args.description.set - 设置脚本描述" {

@@ -5,7 +5,7 @@ import std/map
 import core/log
 import core/help
 
-args.name.set() { _SCRIPT_NAME=$1; }
+args.name.set() { _SCRIPT_DISPLAY=$1; }
 
 args.description.set() { _SCRIPT_DESC=$1; }
 

@@ -91,7 +91,7 @@ teardown() {
 
 @test "BASHLET_ANSI_FORCE_DISABLE 强制禁用颜色" {
   export BASHLET_ANSI_FORCE_DISABLE=1
-  source src/std/ansi.sh
+  import std/ansi.sh
   [[ -z "$RED" ]]
   [[ -z "$Bold" ]]
   unset BASHLET_ANSI_FORCE_DISABLE
@@ -115,7 +115,7 @@ teardown() {
   ansi.disable.powerline
   local prompt="${POWERLINE_SEPARATOR} prompt"
   [[ "$prompt" == "> prompt" ]]
-  
+
   ansi.enable.powerline
   [[ -n "$POWERLINE_SEPARATOR" ]]
 }
@@ -183,7 +183,7 @@ teardown() {
   local error_msg="${RED}ERROR${NC}: something went wrong"
   local success_msg="${GREEN}SUCCESS${NC}: operation completed"
   local warning_msg="${YELLOW}WARNING${NC}: please check"
-  
+
   [[ -n "$error_msg" ]]
   [[ -n "$success_msg" ]]
   [[ -n "$warning_msg" ]]
@@ -194,7 +194,7 @@ teardown() {
   local bold_text="${Bold}Important${NC}"
   local italic_text="${Italics}emphasis${NC}"
   local underline_text="${Underline}link${NC}"
-  
+
   [[ -n "$bold_text" ]]
   [[ -n "$italic_text" ]]
   [[ -n "$underline_text" ]]
@@ -210,7 +210,7 @@ teardown() {
   ansi.disable.powerline
   local success="${POWERLINE_OK} Done"
   local failed="${POWERLINE_FAIL} Failed"
-  
+
   [[ "$success" == "+ Done" ]]
   [[ "$failed" == "x Failed" ]]
 }
