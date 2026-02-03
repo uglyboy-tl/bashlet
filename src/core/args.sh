@@ -9,44 +9,51 @@ declare -gA _ARGS_SUBCOMMANDS=()
 declare -gA _ARGS_SUBCOMMANDS_DESC=()
 declare -g _ARGS_CURRENT_SUBCOMMAND=""
 
+declare -ga _ARGS_OPTIONS=()
+declare -gA _ARGS_OPTIONS_SWITCH=()
+declare -gA _ARGS_OPTIONS_TYPE=()
+declare -gA _ARGS_HELP_OPTIONS=()
+declare -gA _ARGS_HELP_ARGS=()
+declare -gA _ARGS_HELP_EXAMPLES=()
+declare -gA _ARGS_HELP_NOTICES=()
+
 args.name.set() { _SCRIPT_DISPLAY=$1; }
 
 args.description.set() { _SCRIPT_DESC=$1; }
 
-args.new_options() {
-	local prefix="_ARGS_${1^^}"
-	_ARGS_CURRENT_OPTIONS="$prefix"
-	eval "declare -ga ${prefix}_OPTIONS"
-	eval "declare -gA ${prefix}_OPTIONS_SWITCH"
-	eval "declare -gA ${prefix}_OPTIONS_TYPE"
-	eval "declare -gA ${prefix}_HELP_OPTIONS"
-	eval "declare -gA ${prefix}_HELP_ARGS"
-	eval "declare -gA ${prefix}_HELP_EXAMPLES"
-	eval "declare -gA ${prefix}_HELP_NOTICES"
+args.init() {
+	_ARGS_OPTIONS=()
+	declare -gA _ARGS_OPTIONS_SWITCH=()
+	declare -gA _ARGS_OPTIONS_TYPE=()
+	declare -gA _ARGS_HELP_OPTIONS=()
+	declare -gA _ARGS_HELP_ARGS=()
+	declare -gA _ARGS_HELP_EXAMPLES=()
+	declare -gA _ARGS_HELP_NOTICES=()
+	args.description.set "$1"
 	args.add_options "help" "h" "显示帮助信息"
 }
 
 args.add_options() {
-	local type="${4:-}"
-	local -r prefix="$_ARGS_CURRENT_OPTIONS"
+	local type="${4:-}" key
 	: ${type:="NONE"}
+	[[ -n $_ARGS_CURRENT_SUBCOMMAND ]] && subcommand=" $_ARGS_CURRENT_SUBCOMMAND" || subcommand=""
 	case ${1^^} in
-		"ARG") [[ -n "$2" ]] && eval "${prefix}_HELP_ARGS[\"$2\"]=\"${3}\"" && eval "${prefix}_OPTIONS_TYPE[\"$2\"]=\"${type}\"" ;;
-		"EXAMPLE") eval "${prefix}_HELP_EXAMPLES[\"$(basename "$0") $2\"]=\"${3}\"" ;;
-		"NOTICE") eval "${prefix}_HELP_NOTICES+=(\"${2}\")" ;;
+		"ARG") [[ -n "$2" ]] && _ARGS_HELP_ARGS["$2"]="${3}" && _ARGS_OPTIONS_TYPE["$2"]="${type}" ;;
+		"EXAMPLE") _ARGS_HELP_EXAMPLES["$(basename "$0")$subcommand $2"]="${3}" ;;
+		"NOTICE") _ARGS_HELP_NOTICES+=("${2}") ;;
 		*)
-			eval "${prefix}_OPTIONS_TYPE[\"$1\"]=\"${type}\""
-			eval "${prefix}_OPTIONS+=(\"$1\")"
+			_ARGS_OPTIONS_TYPE["$1"]="${type}"
+			_ARGS_OPTIONS+=("$1")
 			[[ -n "$2" ]] && {
-				eval "${prefix}_OPTIONS_SWITCH[\"$1\"]=\"$2\""
-				eval "${prefix}_OPTIONS_SWITCH[\"$2\"]=\"$1\""
-				eval "${prefix}_OPTIONS+=(\"$2\")"
+				_ARGS_OPTIONS_SWITCH["$1"]="$2"
+				_ARGS_OPTIONS_SWITCH["$2"]="$1"
+				_ARGS_OPTIONS+=("$2")
 			}
 			key=""
 			[[ -n $2 ]] && key="-$2, "
 			key+="--$1"
-			[[ ! -z ${4+x} ]] && key+=" $type"
-			eval "${prefix}_HELP_OPTIONS[\"${key}\"]=\"${3}\""
+			[[ -n ${4+x} ]] && key+=" $type"
+			_ARGS_HELP_OPTIONS["${key}"]="${3}"
 			;;
 	esac
 }
@@ -56,7 +63,7 @@ args.add_subcommand() {
 	_ARGS_SUBCOMMANDS_DESC["$1"]="$2"
 }
 
-args.main() {
+args.dispatch() {
 	local cmd="${1:-}"
 	[[ -v "_ARGS_SUBCOMMANDS[$cmd]" ]] && {
 		local handler="${_ARGS_SUBCOMMANDS[$cmd]}"
@@ -93,17 +100,14 @@ args.parse() {
 }
 
 args.verify() {
-	local -n switch=$(args.options_switch)
-	local -n types=$(args.options_type)
-	local -n valid_options=$(args.options)
 	for option in "${_ARGS_OPTS[@]}"; do
-		local opt="${option##*-}"
-		array.contains valid_options $opt || { log.error "未知选项: \"$option\""; return 1; }
-		local another=${switch[$opt]}
+		local opt="${option##*-}" another other
+		array.contains _ARGS_OPTIONS "$opt" || { log.error "未知选项: \"$option\""; return 1; }
+		another=${_ARGS_OPTIONS_SWITCH[$opt]}
 		args.has "-$another" "--$another" && log.error "重复选项" && return 1
 		[[ $option =~ ^-[a-zA-Z]$ ]] && opt=$another
-		case ${types[$opt]} in
-			"NONE") unset _ARGS_OPT_ARGS[$option] ;;
+		case ${_ARGS_OPTIONS_TYPE[$opt]} in
+			"NONE") unset _ARGS_OPT_ARGS[$option] 2>/dev/null || true ;;
 			*) [[ -z ${_ARGS_OPT_ARGS[$option]+x} ]] && log.error "选项 $option 需要参数" && return 1 ;;
 		esac
 	done
@@ -140,44 +144,16 @@ args.arg() { array.get _ARGS_ARGS "$1"; }
 
 args.opt_index() { echo "${_ARGS_OPT_ARGS[$1]:-}"; }
 
-args.options() {
-	echo "${_ARGS_CURRENT_OPTIONS}_OPTIONS"
-}
-
-args.options_switch() {
-	echo "${_ARGS_CURRENT_OPTIONS}_OPTIONS_SWITCH"
-}
-
-args.options_type() {
-	echo "${_ARGS_CURRENT_OPTIONS}_OPTIONS_TYPE"
-}
-
-args.help_options() {
-	echo "${_ARGS_CURRENT_OPTIONS}_HELP_OPTIONS"
-}
-
-args.help_args() {
-	echo "${_ARGS_CURRENT_OPTIONS}_HELP_ARGS"
-}
-
-args.help_examples() {
-	echo "${_ARGS_CURRENT_OPTIONS}_HELP_EXAMPLES"
-}
-
-args.help_notices() {
-	echo "${_ARGS_CURRENT_OPTIONS}_HELP_NOTICES"
-}
-
 args.show_help() {
-	help.show $(args.help_options) $(args.help_args) $(args.help_examples) $(args.help_notices)
+	help.show _ARGS_HELP_OPTIONS _ARGS_HELP_ARGS _ARGS_HELP_EXAMPLES _ARGS_HELP_NOTICES
 }
 
 args.debug_options() {
-	log.debug "$(declare -p $(args.options))"
-	log.debug "$(declare -p $(args.options_switch))"
-	log.debug "$(declare -p $(args.options_type))"
-	log.debug "$(declare -p $(args.help_options))"
-	log.debug "$(declare -p $(args.help_args))"
-	log.debug "$(declare -p $(args.help_examples))"
-	log.debug "$(declare -p $(args.help_notices))"
+	log.debug "$(declare -p _ARGS_OPTIONS)"
+	log.debug "$(declare -p _ARGS_OPTIONS_SWITCH)"
+	log.debug "$(declare -p _ARGS_OPTIONS_TYPE)"
+	log.debug "$(declare -p _ARGS_HELP_OPTIONS)"
+	log.debug "$(declare -p _ARGS_HELP_ARGS)"
+	log.debug "$(declare -p _ARGS_HELP_EXAMPLES)"
+	log.debug "$(declare -p _ARGS_HELP_NOTICES)"
 }

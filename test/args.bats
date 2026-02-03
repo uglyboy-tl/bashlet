@@ -9,7 +9,7 @@ setup() {
 }
 
 teardown() {
-	unset _ARGS_OPTS _ARGS_ARGS _ARGS_OPT_ARGS 2>/dev/null || true
+	unset _ARGS_OPTS _ARGS_ARGS _ARGS_OPT_ARGS _ARGS_OPTIONS _ARGS_OPTIONS_SWITCH _ARGS_OPTIONS_TYPE _ARGS_HELP_OPTIONS _ARGS_HELP_ARGS _ARGS_HELP_EXAMPLES _ARGS_HELP_NOTICES 2>/dev/null || true
 }
 
 # ============ args.get 测试 ============
@@ -328,13 +328,12 @@ teardown() {
 # ============ args.verify 测试 ============
 
 setup_verify() {
-	unset _ARGS_MYAPP_OPTIONS _ARGS_MYAPP_OPTIONS_SWITCH _ARGS_MYAPP_OPTIONS_TYPE 2>/dev/null || true
-	args.new_options "myapp"
+	unset _ARGS_OPTIONS _ARGS_OPTIONS_SWITCH _ARGS_OPTIONS_TYPE 2>/dev/null || true
+	args.init
 	args.add_options "verbose" "v" "显示详细输出"
 	args.add_options "file" "f" "指定输入文件" "FILE"
 	args.add_options "output" "o" "指定输出文件" "FILE"
 	args.add_options "quiet" "q" "安静模式"
-	args.add_options "help" "h" "显示帮助信息"
 }
 
 @test "args.verify - 已注册选项验证通过" {
@@ -448,55 +447,68 @@ setup_verify() {
 	[ "$_SCRIPT_DESC" = "A test script" ]
 }
 
-# ============ args.new_options 测试 ============
+# ============ args.init 测试 ============
 
-@test "args.new_options - 创建选项组并设置当前选项" {
-	args.new_options "testapp"
-	[ "$_ARGS_CURRENT_OPTIONS" = "_ARGS_TESTAPP" ]
-	[ "${#_ARGS_TESTAPP_OPTIONS[@]}" -eq 2 ]  # 默认添加了 help 和 h 选项
-	[ "${_ARGS_TESTAPP_OPTIONS[0]}" = "help" ]
-	[ "${_ARGS_TESTAPP_OPTIONS[1]}" = "h" ]
+@test "args.init - 创建选项组并设置当前选项" {
+	args.init
+	[ "${#_ARGS_OPTIONS[@]}" -eq 2 ]  # 默认添加了 help 和 h 选项
+	[ "${_ARGS_OPTIONS[0]}" = "help" ]
+	[ "${_ARGS_OPTIONS[1]}" = "h" ]
 }
 
-@test "args.new_options - 多次创建不同选项组" {
-	args.new_options "app1"
-	args.new_options "app2"
-	[ "$_ARGS_CURRENT_OPTIONS" = "_ARGS_APP2" ]
+@test "args.init - 多次调用会清空之前选项" {
+	args.init
+	args.add_options "verbose" "v" "显示详细输出"
+	[ "${#_ARGS_OPTIONS[@]}" -eq 4 ]  # help, h, verbose, v
+	args.init
+	[ "${#_ARGS_OPTIONS[@]}" -eq 2 ]  # 重新初始化后只有 help 和 h
+}
+
+@test "args.init - 带描述参数时设置描述" {
+	args.init "测试描述"
+	[ "$_SCRIPT_DESC" = "测试描述" ]
+	[ "${#_ARGS_OPTIONS[@]}" -eq 2 ]  # 仍然有 help 选项
+}
+
+@test "args.init - 不带参数时不设置描述" {
+	unset _SCRIPT_DESC 2>/dev/null || true
+	args.init
+	[ -z "$_SCRIPT_DESC" ]
 }
 
 # ============ args.add_options 测试 ============
 
 @test "args.add_options - 添加选项" {
-	args.new_options "testapp"
+	args.init
 	args.add_options "verbose" "v" "显示详细输出"
-	[ "${_ARGS_TESTAPP_OPTIONS[2]}" = "verbose" ]
-	[ "${_ARGS_TESTAPP_OPTIONS[3]}" = "v" ]
+	[ "${_ARGS_OPTIONS[2]}" = "verbose" ]
+	[ "${_ARGS_OPTIONS[3]}" = "v" ]
 }
 
 @test "args.add_options - 添加带类型选项" {
-	args.new_options "testapp"
+	args.init
 	args.add_options "file" "f" "输入文件" "FILE"
-	[ "${_ARGS_TESTAPP_OPTIONS_TYPE[file]}" = "FILE" ]
+	[ "${_ARGS_OPTIONS_TYPE[file]}" = "FILE" ]
 }
 
 @test "args.add_options - 添加 ARG 参数" {
-	args.new_options "testapp"
+	args.init
 	args.add_options "ARG" "input" "输入文件"
-	[ "${_ARGS_TESTAPP_HELP_ARGS[input]}" = "输入文件" ]
+	[ "${_ARGS_HELP_ARGS[input]}" = "输入文件" ]
 }
 
 @test "args.add_options - 添加 EXAMPLE 示例" {
-	args.new_options "testapp"
+	args.init
 	args.add_options "EXAMPLE" "command" "示例说明"
 	# 示例会包含脚本名，验证映射不为空
-	[ ${#_ARGS_TESTAPP_HELP_EXAMPLES[@]} -gt 0 ]
+	[ ${#_ARGS_HELP_EXAMPLES[@]} -gt 0 ]
 }
 
 @test "args.add_options - 添加 NOTICE 通知" {
-	args.new_options "testapp"
+	args.init
 	args.add_options "NOTICE" "注意：此选项需要管理员权限"
 	# NOTICE 使用数组追加，验证数组不为空
-	[ ${#_ARGS_TESTAPP_HELP_NOTICES[@]} -gt 0 ]
+	[ ${#_ARGS_HELP_NOTICES[@]} -gt 0 ]
 }
 
 # ============ args.add_subcommand 测试 ============
@@ -509,22 +521,22 @@ setup_verify() {
 	[ "${_ARGS_SUBCOMMANDS_DESC[build]}" = "构建项目" ]
 }
 
-@test "args.main - 调用已注册子命令" {
+@test "args.dispatch - 调用已注册子命令" {
 	args.add_subcommand "test" "测试命令" "test_cmd_handler"
 	test_cmd_handler() { echo "handler_called:$1:$2"; }
-	result=$(args.main test arg1 arg2)
+	result=$(args.dispatch test arg1 arg2)
 	[ "$result" = "handler_called:arg1:arg2" ]
 }
 
-@test "args.main - 子命令不存在返回错误" {
+@test "args.dispatch - 子命令不存在返回错误" {
 	args.add_subcommand "build" "构建" "build_handler"
-	args.main "notexist" 2>/dev/null || true
-	! args.main "notexist" 2>/dev/null
+	args.dispatch "notexist" 2>/dev/null || true
+	! args.dispatch "notexist" 2>/dev/null
 }
 
-@test "args.main - 空参数返回错误" {
+@test "args.dispatch - 空参数返回错误" {
 	args.add_subcommand "deploy" "部署" "deploy_handler"
-	! args.main "" 2>/dev/null
+	! args.dispatch "" 2>/dev/null
 }
 
 @test "args.add_subcommand - 注册多个子命令" {
@@ -540,60 +552,18 @@ setup_verify() {
 	[ "${_ARGS_SUBCOMMANDS[deploy]}" = "deploy_handler" ]
 }
 
-@test "args.main - 多个子命令调用正确 handler" {
+@test "args.dispatch - 多个子命令调用正确 handler" {
 	args.add_subcommand "foo" "FOO命令" "foo_handler"
 	args.add_subcommand "bar" "BAR命令" "bar_handler"
 	foo_handler() { echo "foo:$1"; }
 	bar_handler() { echo "bar:$1"; }
-	result1=$(args.main foo arg1)
-	result2=$(args.main bar arg2)
+	result1=$(args.dispatch foo arg1)
+	result2=$(args.dispatch bar arg2)
 	[ "$result1" = "foo:arg1" ]
 	[ "$result2" = "bar:arg2" ]
 }
 
 # ============ 辅助函数测试 ============
-
-@test "args.options - 返回选项数组名" {
-	args.new_options "testapp"
-	result=$(args.options)
-	[ "$result" = "_ARGS_TESTAPP_OPTIONS" ]
-}
-
-@test "args.options_switch - 返回选项开关映射名" {
-	args.new_options "testapp"
-	result=$(args.options_switch)
-	[ "$result" = "_ARGS_TESTAPP_OPTIONS_SWITCH" ]
-}
-
-@test "args.options_type - 返回选项类型映射名" {
-	args.new_options "testapp"
-	result=$(args.options_type)
-	[ "$result" = "_ARGS_TESTAPP_OPTIONS_TYPE" ]
-}
-
-@test "args.help_options - 返回帮助选项映射名" {
-	args.new_options "testapp"
-	result=$(args.help_options)
-	[ "$result" = "_ARGS_TESTAPP_HELP_OPTIONS" ]
-}
-
-@test "args.help_args - 返回帮助参数映射名" {
-	args.new_options "testapp"
-	result=$(args.help_args)
-	[ "$result" = "_ARGS_TESTAPP_HELP_ARGS" ]
-}
-
-@test "args.help_examples - 返回帮助示例映射名" {
-	args.new_options "testapp"
-	result=$(args.help_examples)
-	[ "$result" = "_ARGS_TESTAPP_HELP_EXAMPLES" ]
-}
-
-@test "args.help_notices - 返回帮助通知映射名" {
-	args.new_options "testapp"
-	result=$(args.help_notices)
-	[ "$result" = "_ARGS_TESTAPP_HELP_NOTICES" ]
-}
 
 @test "args.opt_index - 返回选项的参数索引" {
 	args.parse -f file.txt
@@ -622,7 +592,7 @@ setup_verify() {
 }
 
 @test "args.args - 验证后返回最终参数数组" {
-	args.new_options "testapp"
+	args.init
 	args.add_options "file" "f" "文件" "FILE"
 	args.parse -f file.txt arg1 arg2
 	args.verify

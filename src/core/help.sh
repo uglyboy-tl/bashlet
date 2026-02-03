@@ -10,11 +10,12 @@ _SCRIPT_NAME=${0##*/}
 : ${_SCRIPT_DISPLAY:-$_SCRIPT_NAME}
 
 # 当前子命令（用于帮助显示）
-_ARGS_CURRENT_SUBCOMMAND=""
+_SCRIPT_DESC=""
 
 help.title() {
 	local _title="$_SCRIPT_DISPLAY"
-	[[ -v _SCRIPT_DESC ]] && _title="$_title - $_SCRIPT_DESC"
+	[[ -n $_ARGS_CURRENT_SUBCOMMAND ]] && _title="$_title - $_ARGS_CURRENT_SUBCOMMAND"
+	[[ -n $_SCRIPT_DESC ]] && _title="$_title - $_SCRIPT_DESC"
 	console.stderr "${Bold}${_title}${NC}"
 }
 
@@ -32,7 +33,7 @@ help.usage.oneline() {
 help.usage() {
 	local _usage_line="${BRIGHT_BLUE}Usage:${NC} ${BRIGHT_CYAN}$_SCRIPT_NAME${NC}"
 	local subcommand="${_ARGS_CURRENT_SUBCOMMAND:-<subcommand>}"
-	[[ -n ${1:-} ]] && _usage_line="${_usage_line} ${BRIGHT_MAGENTA}$subcommand${NC}"
+	(( ${1:-0} )) && _usage_line="${_usage_line} ${BRIGHT_MAGENTA}$subcommand${NC}"
 	(( ${2:-0} )) && _usage_line="${_usage_line} ${BRIGHT_YELLOW}[OPTIONS]${NC}"
 	(( ${3:-0} )) && _usage_line="${_usage_line} ${BRIGHT_YELLOW}[ARGUMENTS]${NC}"
 
