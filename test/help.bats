@@ -6,6 +6,9 @@ setup() {
 	_common_setup
 	import core/help
 	unset _SCRIPT_NAME _SCRIPT_DESC 2>/dev/null || true
+	unset _ARGS_CURRENT_SUBCOMMAND 2>/dev/null || true
+	declare -g _ARGS_CURRENT_SUBCOMMAND=""
+	declare -gA _ARGS_SUBCOMMANDS=()
 }
 
 teardown() {
@@ -15,6 +18,7 @@ teardown() {
 @test "help.show - 显示完整帮助" {
 	_SCRIPT_NAME="test"
 	_SCRIPT_DESC="Test script"
+	_ARGS_SUBCOMMANDS["test"]="test_handler"
 
 	declare -A opts=(
 		["-h, --help"]="Show help"

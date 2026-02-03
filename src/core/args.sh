@@ -5,6 +5,10 @@ import std/map
 import core/log
 import core/help
 
+declare -gA _ARGS_SUBCOMMANDS=()
+declare -gA _ARGS_SUBCOMMANDS_DESC=()
+declare -g _ARGS_CURRENT_SUBCOMMAND=""
+
 args.name.set() { _SCRIPT_DISPLAY=$1; }
 
 args.description.set() { _SCRIPT_DESC=$1; }
@@ -48,9 +52,20 @@ args.add_options() {
 }
 
 args.add_subcommand() {
-	local -r command="$1"
-	local -r description="$2"
-	local -r handler="$3"
+	_ARGS_SUBCOMMANDS["$1"]="$3"
+	_ARGS_SUBCOMMANDS_DESC["$1"]="$2"
+}
+
+args.main() {
+	local cmd="${1:-}"
+	[[ -v "_ARGS_SUBCOMMANDS[$cmd]" ]] && {
+		local handler="${_ARGS_SUBCOMMANDS[$cmd]}"
+		_ARGS_CURRENT_SUBCOMMAND="$cmd"
+		shift
+		"$handler" "$@"
+		return $?
+	}
+	return 1
 }
 
 args.parse() {

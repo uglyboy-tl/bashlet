@@ -503,9 +503,52 @@ setup_verify() {
 
 @test "args.add_subcommand - 函数存在但不执行任何操作" {
 	args.add_subcommand "build" "构建项目" "build_handler"
-	# 函数只是赋值给局部变量，没有副作用
-	# 这里测试函数调用不会出错
-	true
+	# 验证子命令已注册
+	[[ -v "_ARGS_SUBCOMMANDS[build]" ]]
+	[ "${_ARGS_SUBCOMMANDS[build]}" = "build_handler" ]
+	[ "${_ARGS_SUBCOMMANDS_DESC[build]}" = "构建项目" ]
+}
+
+@test "args.main - 调用已注册子命令" {
+	args.add_subcommand "test" "测试命令" "test_cmd_handler"
+	test_cmd_handler() { echo "handler_called:$1:$2"; }
+	result=$(args.main test arg1 arg2)
+	[ "$result" = "handler_called:arg1:arg2" ]
+}
+
+@test "args.main - 子命令不存在返回错误" {
+	args.add_subcommand "build" "构建" "build_handler"
+	args.main "notexist" 2>/dev/null || true
+	! args.main "notexist" 2>/dev/null
+}
+
+@test "args.main - 空参数返回错误" {
+	args.add_subcommand "deploy" "部署" "deploy_handler"
+	! args.main "" 2>/dev/null
+}
+
+@test "args.add_subcommand - 注册多个子命令" {
+	args.add_subcommand "build" "构建项目" "build_handler"
+	args.add_subcommand "test" "运行测试" "test_handler"
+	args.add_subcommand "deploy" "部署应用" "deploy_handler"
+	[ ${#_ARGS_SUBCOMMANDS[@]} -eq 3 ]
+	[ "${_ARGS_SUBCOMMANDS_DESC[build]}" = "构建项目" ]
+	[ "${_ARGS_SUBCOMMANDS_DESC[test]}" = "运行测试" ]
+	[ "${_ARGS_SUBCOMMANDS_DESC[deploy]}" = "部署应用" ]
+	[ "${_ARGS_SUBCOMMANDS[build]}" = "build_handler" ]
+	[ "${_ARGS_SUBCOMMANDS[test]}" = "test_handler" ]
+	[ "${_ARGS_SUBCOMMANDS[deploy]}" = "deploy_handler" ]
+}
+
+@test "args.main - 多个子命令调用正确 handler" {
+	args.add_subcommand "foo" "FOO命令" "foo_handler"
+	args.add_subcommand "bar" "BAR命令" "bar_handler"
+	foo_handler() { echo "foo:$1"; }
+	bar_handler() { echo "bar:$1"; }
+	result1=$(args.main foo arg1)
+	result2=$(args.main bar arg2)
+	[ "$result1" = "foo:arg1" ]
+	[ "$result2" = "bar:arg2" ]
 }
 
 # ============ 辅助函数测试 ============
