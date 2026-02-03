@@ -1,0 +1,181 @@
+#!/usr/bin/env bash
+#
+# 示例：使用 args 模块构建带子命令的 CLI 工具
+#
+# 用法:
+#   ./args.sh [global_options] <subcommand> [subcommand_options]
+#
+# 全局选项:
+#   -v, --verbose    全局详细模式
+#   -h, --help       显示帮助
+#   -V, --version    显示版本
+#
+# 子命令:
+#   build    构建项目
+#   test     运行测试
+#   deploy   部署应用
+#
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BASHLET_DIR="$(dirname "$SCRIPT_DIR")"
+
+source "$BASHLET_DIR/src/std/import.sh"
+import core/args
+import core/log
+
+SCRIPT_VERSION="1.0.0"
+
+# ============================================================
+# 显示版本信息
+# ============================================================
+show_version() {
+	console.stderr "${BRIGHT_CYAN}${_SCRIPT_DISPLAY:-项目工具}${NC} version ${BRIGHT_GREEN}${SCRIPT_VERSION}${NC}"
+}
+
+# ============================================================
+# 子命令: build - 构建项目
+# ============================================================
+cmd_build() {
+	args.name.set "项目工具 - build"
+	args.description.set "构建项目"
+
+	args.new_options "build"
+	args.add_options "clean" "c" "构建前清理"
+	args.add_options "target" "t" "构建目标" "TARGET"
+	args.add_options "verbose" "v" "详细输出"
+	args.add_options "help" "h" "显示帮助信息"
+	args.add_options "NOTICE" "默认构建目标为 release"
+	args.add_options "EXAMPLE" "" "构建项目"
+	args.add_options "EXAMPLE" "-c" "清理后构建"
+	args.add_options "EXAMPLE" "-t debug" "构建调试版本"
+
+	args.parse "$@"
+	args.verify || { args.show_help; return 1; }
+	args.has "-h" "--help" && { args.show_help; return 0; }
+
+	log.info "开始构建项目..."
+
+	args.has "-c" "--clean" && log.info "  → 清理旧构建文件"
+
+	local target
+	target=$(args.get "-t" "--target") || target="release"
+	log.info "  → 构建目标: $target"
+
+	args.has "-v" "--verbose" && log.info "  → 启用详细输出"
+
+	log.success "构建完成！"
+}
+
+# ============================================================
+# 子命令: test - 运行测试
+# ============================================================
+cmd_test() {
+	args.name.set "项目工具 - test"
+	args.description.set "运行项目测试"
+
+	args.new_options "test"
+	args.add_options "watch" "w" "监视模式"
+	args.add_options "filter" "f" "测试过滤器" "PATTERN"
+	args.add_options "coverage" "" "生成覆盖率报告"
+	args.add_options "help" "h" "显示帮助信息"
+	args.add_options "NOTICE" "使用 -f 过滤特定的测试"
+	args.add_options "EXAMPLE" "" "运行所有测试"
+	args.add_options "EXAMPLE" "-w" "监视模式运行测试"
+	args.add_options "EXAMPLE" "-f unit" "只运行单元测试"
+
+	args.parse "$@"
+	args.verify || { args.show_help; return 1; }
+	args.has "-h" "--help" && { args.show_help; return 0; }
+
+	log.info "运行测试..."
+
+	local filter
+	if filter=$(args.get "-f" "--filter"); then
+		log.info "  → 过滤模式: $filter"
+	fi
+
+	args.has "-w" "--watch" && log.info "  → 监视模式已启用"
+	args.has "--coverage" && log.info "  → 生成覆盖率报告"
+
+	log.success "测试通过！"
+}
+
+# ============================================================
+# 子命令: deploy - 部署应用
+# ============================================================
+cmd_deploy() {
+	args.name.set "项目工具 - deploy"
+	args.description.set "部署应用到目标环境"
+
+	args.new_options "deploy"
+	args.add_options "env" "e" "部署环境" "ENV"
+	args.add_options "dry-run" "n" "仅模拟，不实际部署"
+	args.add_options "force" "" "强制部署"
+	args.add_options "help" "h" "显示帮助信息"
+	args.add_options "NOTICE" "-e 选项是必需的"
+	args.add_options "EXAMPLE" "-e production" "部署到生产环境"
+	args.add_options "EXAMPLE" "-e staging -n" "模拟部署到测试环境"
+
+	args.parse "$@"
+	args.verify || { args.show_help; return 1; }
+	args.has "-h" "--help" && { args.show_help; return 0; }
+
+	local env
+	if ! env=$(args.get "-e" "--env"); then
+		log.error "请指定部署环境 (-e <env>)"
+		return 1
+	fi
+
+	log.info "开始部署..."
+	log.info "  → 目标环境: $env"
+
+	args.has "-n" "--dry-run" && log.warn "  → [模拟模式] 不会实际部署"
+	args.has "--force" && log.warn "  → 强制部署模式"
+
+	log.success "部署成功！"
+}
+
+# ============================================================
+# 主函数
+# ============================================================
+main() {
+	# 设置脚本信息
+	args.name.set "项目工具"
+	args.description.set "项目管理 CLI 工具"
+
+	# 注册子命令
+	args.add_subcommand "build" "构建项目" "cmd_build"
+	args.add_subcommand "test" "运行测试" "cmd_test"
+	args.add_subcommand "deploy" "部署应用" "cmd_deploy"
+
+
+	# 尝试分发到子命令（args.main 会设置 _ARGS_CURRENT_SUBCOMMAND 为实际子命令名）
+	if args.main "$@"; then
+		exit 0
+	fi
+
+	# 不是子命令，设置全局选项并解析
+	args.new_options "global"
+	args.add_options "verbose" "v" "启用全局详细模式"
+	args.add_options "help" "h" "显示帮助信息"
+	args.add_options "version" "V" "显示版本信息"
+	args.add_options "NOTICE" "可用子命令: build, test, deploy"
+	args.add_options "EXAMPLE" "" "显示版本信息"
+	args.add_options "EXAMPLE" "build -c -v" "清理并构建项目"
+	args.add_options "EXAMPLE" "test -w" "以监视模式运行测试"
+	args.add_options "EXAMPLE" "deploy -e production" "部署到生产环境"
+
+	args.parse "$@"
+	args.verify || { args.show_help; exit 1; }
+
+	# 处理全局选项
+	args.has "-h" "--help" && { args.show_help; exit 0; }
+	args.has "-V" "--version" && { show_version; exit 0; }
+	args.has "-v" "--verbose" && log.info "全局详细模式已启用"
+
+	# 无参数或未知情况，显示帮助
+	args.show_help
+	exit 1
+}
+
+main "$@"
