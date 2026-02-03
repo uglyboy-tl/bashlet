@@ -36,10 +36,8 @@ show_version() {
 # 子命令: build - 构建项目
 # ============================================================
 cmd_build() {
-	args.name.set "项目工具 - build"
-	args.description.set "构建项目"
 
-	args.new_options "build"
+	args.init "构建项目"
 	args.add_options "clean" "c" "构建前清理"
 	args.add_options "target" "t" "构建目标" "TARGET"
 	args.add_options "verbose" "v" "详细输出"
@@ -70,10 +68,7 @@ cmd_build() {
 # 子命令: test - 运行测试
 # ============================================================
 cmd_test() {
-	args.name.set "项目工具 - test"
-	args.description.set "运行项目测试"
-
-	args.new_options "test"
+	args.init "运行项目测试"
 	args.add_options "watch" "w" "监视模式"
 	args.add_options "filter" "f" "测试过滤器" "PATTERN"
 	args.add_options "coverage" "" "生成覆盖率报告"
@@ -104,10 +99,7 @@ cmd_test() {
 # 子命令: deploy - 部署应用
 # ============================================================
 cmd_deploy() {
-	args.name.set "项目工具 - deploy"
-	args.description.set "部署应用到目标环境"
-
-	args.new_options "deploy"
+	args.init "部署应用到目标环境"
 	args.add_options "env" "e" "部署环境" "ENV"
 	args.add_options "dry-run" "n" "仅模拟，不实际部署"
 	args.add_options "force" "" "强制部署"
@@ -149,13 +141,13 @@ main() {
 	args.add_subcommand "deploy" "部署应用" "cmd_deploy"
 
 
-	# 尝试分发到子命令（args.main 会设置 _ARGS_CURRENT_SUBCOMMAND 为实际子命令名）
-	if args.main "$@"; then
+	# 尝试分发到子命令（args.dispatch 会设置 _ARGS_CURRENT_SUBCOMMAND 为实际子命令名）
+	if args.dispatch "$@"; then
 		exit 0
 	fi
 
 	# 不是子命令，设置全局选项并解析
-	args.new_options "global"
+	args.init
 	args.add_options "verbose" "v" "启用全局详细模式"
 	args.add_options "help" "h" "显示帮助信息"
 	args.add_options "version" "V" "显示版本信息"

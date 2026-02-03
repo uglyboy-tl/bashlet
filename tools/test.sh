@@ -111,9 +111,8 @@ show_test_stats() {
 # 主函数
 main() {
 	args.name.set "测试运行器"
-	args.description.set "运行 bashlet 项目的 Bats 测试"
 
-	args.new_options "main"
+	args.init "运行 bashlet 项目的 Bats 测试"
 	args.add_options "filter" "f" "只运行匹配模式的测试" "STRING"
 	args.add_options "jobs" "j" "并行运行测试 (默认: 1)" "NUM"
 	args.add_options "verbose" "v" "详细输出"

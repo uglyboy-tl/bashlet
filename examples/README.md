@@ -15,8 +15,8 @@
 
 ```bash
 ./args.sh              # 显示全局帮助
-./args.sh -h             # 显示全局帮助
-./args.sh -V             # 显示版本
+./args.sh -h           # 显示全局帮助
+./args.sh -V           # 显示版本
 ```
 
 ### 查看子命令帮助
@@ -54,65 +54,40 @@
 
 ```bash
 main() {
-    # 1. 注册信息和子命令
-    args.name.set "项目工具"
+    # 1. 注册子命令
     args.add_subcommand "build" "构建项目" "cmd_build"
     args.add_subcommand "test" "运行测试" "cmd_test"
 
-    # 2. 设置全局帮助的 subcommand 占位符
-    _ARGS_CURRENT_SUBCOMMAND="<subcommand>"
-
-    # 3. 尝试分发到子命令
-    if args.main "$@"; then
+    # 2. 尝试分发到子命令
+    if args.dispatch "$@"; then
         exit 0
     fi
 
-    # 4. 不是子命令，解析全局选项
-    args.new_options "global"
+    # 3. 不是子命令，解析全局选项
+    args.init "项目管理 CLI 工具"
     args.add_options "help" "h" "显示帮助信息"
     args.add_options "version" "V" "显示版本信息"
     args.parse "$@"
     args.verify || { args.show_help; exit 1; }
 
-    # 5. 处理全局选项
+    # 4. 处理全局选项
     args.has "-h" "--help" && { args.show_help; exit 0; }
     args.has "-V" "--version" && { show_version; exit 0; }
 
-    # 6. 无参数或未知情况，显示帮助
+    # 5. 无参数或未知情况，显示帮助
     args.show_help
     exit 1
 }
 ```
 
-### 2. 子命令变量控制帮助显示
-
-- `_ARGS_CURRENT_SUBCOMMAND`：当前子命令（用于 Usage 行显示）
-- `_ARGS_SUBCOMMANDS`：注册的所有子命令（用于 footer 显示判断）
-
-**全局帮助**（主函数中设置）：
-```bash
-_ARGS_CURRENT_SUBCOMMAND="<subcommand>"  # Usage 显示占位符
-# footer 显示（因为 _ARGS_SUBCOMMANDS 非空）
-```
-
-**子命令帮助**（args.main 自动设置）：
-```bash
-_ARGS_CURRENT_SUBCOMMAND="build"  # Usage 显示实际子命令名
-# footer 不显示（因为变量非空）
-```
-
 ### 2. 子命令处理函数结构
-
-参考 `tools/test.sh` 的标准结构：
 
 ```bash
 cmd_example() {
-    # 1. 设置命令信息
-    args.name.set "工具名 - 子命令"
-    args.description.set "子命令描述"
+    # 1. 初始化并设置描述
+    args.init "子命令描述"
 
-    # 2. 创建选项命名空间
-    args.new_options "example"
+    # 2. 添加选项
     args.add_options "verbose" "v" "详细输出"
     args.add_options "help" "h" "显示帮助"
     args.add_options "NOTICE" "重要提示信息"
@@ -138,76 +113,28 @@ args.add_subcommand "<命令名>" "<描述>" "<处理函数>"
 
 通过 `args.verify` 自动处理，未知选项或命令会触发验证失败并显示帮助信息，无需单独处理。
 
-### 2. 子命令处理函数结构
-
-参考 `tools/test.sh` 的标准结构：
-
-```bash
-cmd_example() {
-    # 1. 设置命令信息
-    args.name.set "工具名 - 子命令"
-    args.description.set "子命令描述"
-
-    # 2. 创建选项命名空间
-    args.new_options "example"
-    args.add_options "verbose" "v" "详细输出"
-    args.add_options "help" "h" "显示帮助"
-    args.add_options "NOTICE" "重要提示信息"
-    args.add_options "EXAMPLE" "" "使用示例"
-
-    # 3. 解析、验证、处理帮助
-    args.parse "$@"
-    args.verify || { args.show_help; return 1; }
-    args.has "-h" "--help" && { args.show_help; return 0; }
-
-    # 4. 实现功能
-    # ...
-}
-```
-
-### 3. 全局帮助使用 `args.show_help`
-
-```bash
-show_global_help() {
-    args.name.set "项目工具"
-    args.description.set "项目管理 CLI 工具"
-    args.new_options "global"
-    args.add_options "verbose" "v" "启用全局详细模式"
-    args.add_options "help" "h" "显示帮助信息"
-    args.add_options "NOTICE" "可用子命令: build, test, deploy"
-    args.add_options "EXAMPLE" "build -c -v" "清理并构建项目"
-    args.show_help
-}
-```
-
-### 4. 注册子命令
-
-```bash
-args.add_subcommand "<命令名>" "<描述>" "<处理函数>"
-```
-
 ## 特点
 
 - **标准主函数结构**: 先尝试子命令分发，失败后再解析全局选项
-- **独立选项命名空间**: 每个子命令有自己的选项，使用 `args.show_help` 显示帮助
+- **简化初始化**: `args.init` 一行完成初始化和描述设置
+- **无命名空间**: 选项直接存储在全局数组中，性能更好
 - **完整的帮助系统**: 支持全局帮助和各子命令独立帮助
 - **自动错误处理**: 通过 `args.verify` 自动处理未知命令和选项
-- **参考实现**: 子命令处理函数结构参考 `tools/test.sh` 的最佳实践
 
 ## 架构
 
 ```
 主函数逻辑:
 
-1. 注册信息和子命令
-   args.name.set / args.add_subcommand
+1. 注册子命令
+   args.add_subcommand
    ↓
-2. args.main 分发到子命令
+2. args.dispatch 分发到子命令
    ├─ 成功 → 子命令处理完毕退出
    └─ 失败 → 继续执行
       ↓
 3. 设置全局选项并解析
-   args.new_options / args.add_options / args.parse
+   args.init / args.add_options / args.parse
    args.verify (验证失败自动显示帮助)
       ↓
 4. 处理全局选项
@@ -218,9 +145,19 @@ args.add_subcommand "<命令名>" "<描述>" "<处理函数>"
 
 子命令处理函数:
 
-1. args.name.set / args.description.set
-2. args.new_options 创建命名空间
-3. args.add_options 添加选项、帮助、示例、提示
-4. args.parse → args.verify → args.has 处理帮助
-5. 实现功能
+1. args.init "描述"              # 初始化 + 设置描述
+2. args.add_options 添加选项    # 添加选项、帮助、示例、提示
+3. args.parse → args.verify → args.has 处理帮助
+4. 实现功能
 ```
+
+## API 变更说明
+
+从旧版本迁移的注意事项：
+
+| 旧 API | 新 API | 说明 |
+|--------|--------|------|
+| `args.new_options "name"` | `args.init ["描述"]` | 无需命名空间参数，支持可选描述 |
+| `args.name.set "xxx"` | 无需调用 | 标题自动生成 |
+| `args.description.set "xxx"` | `args.init "xxx"` | 合并到 init 参数 |
+| `args.main` | `args.dispatch` | 函数重命名 |
