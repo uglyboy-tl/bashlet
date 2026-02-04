@@ -7,19 +7,18 @@ import core/usage
 
 declare -gA _ARGS_SUBCOMMANDS=()
 declare -gA _ARGS_SUBCOMMANDS_DESC=()
-declare -g _ARGS_CURRENT_SUBCOMMAND=""
-
 declare -ga _ARGS_OPTIONS=()
 declare -gA _ARGS_OPTIONS_SWITCH=()
 declare -gA _ARGS_OPTIONS_TYPE=()
+declare -g _ARGS_CURRENT_SUBCOMMAND=""
 declare -gA _ARGS_HELP_OPTIONS=()
 declare -gA _ARGS_HELP_ARGS=()
 declare -gA _ARGS_HELP_EXAMPLES=()
 declare -gA _ARGS_HELP_NOTICES=()
 
-args.name() { _SCRIPT_DISPLAY=$1; }
+args.name() { usage.name.set "$1"; }
 
-args.description() { [[ -n $1 ]] && _SCRIPT_DESC=$1; }
+args.description() { usage.description.set "$1" || return 1; }
 
 args.init() {
 	_ARGS_OPTIONS=()
@@ -29,12 +28,12 @@ args.init() {
 	declare -gA _ARGS_HELP_ARGS=()
 	declare -gA _ARGS_HELP_EXAMPLES=()
 	declare -gA _ARGS_HELP_NOTICES=()
-	args.description "${1:-}" || { [[ -n $_ARGS_CURRENT_SUBCOMMAND ]] && args.description "${_ARGS_SUBCOMMANDS_DESC[$_ARGS_CURRENT_SUBCOMMAND]}"; }
+	usage.description.set "${1:-}" || { [[ -n $_ARGS_CURRENT_SUBCOMMAND ]] && usage.description.set "${_ARGS_SUBCOMMANDS_DESC[$_ARGS_CURRENT_SUBCOMMAND]}"; }
 	args.add_options "help" "h" "显示帮助信息"
 }
 
 args.add_options() {
-	local type="${4:-}" key
+	local type="${4:-}" key subcommand
 	: ${type:="NONE"}
 	[[ -n $_ARGS_CURRENT_SUBCOMMAND ]] && subcommand=" $_ARGS_CURRENT_SUBCOMMAND" || subcommand=""
 	case ${1^^} in
@@ -138,7 +137,7 @@ args.has() {
 
 args.get() {
 	for o in "$@"; do
-		i=$(args.opt_index "$o")
+		i=$(args.opt.arg_index "$o")
 		if [[ $i ]]; then
 			args.arg "$i"
 			return 0
@@ -149,11 +148,9 @@ args.get() {
 
 args.args() { echo "_ARGS_FINAL_ARGS"; }
 
-args.count() { array.len _ARGS_ARGS; }
-
 args.arg() { array.get _ARGS_ARGS "$1"; }
 
-args.opt_index() { echo "${_ARGS_OPT_ARGS[$1]:-}"; }
+args.opt.arg_index() { echo "${_ARGS_OPT_ARGS[$1]:-}"; }
 
 args.show_help() {
 	usage.show _ARGS_HELP_OPTIONS _ARGS_HELP_ARGS _ARGS_HELP_EXAMPLES _ARGS_HELP_NOTICES
