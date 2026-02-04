@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-import std/bash4
 import std/array
 import core/path
 import core/log
@@ -27,24 +26,24 @@ config.register() {
 config.load() {
 	local file="${1:-$(path.config_dir)/config.toml}"
 	[[ -f "$file" ]] || { log.error "配置文件不存在: $file"; return 1; }
-	
+
 	local key value
 	while IFS= read -r line || [[ -n "$line" ]]; do
 		[[ $line =~ ^[[:space:]]*# ]] && continue
 		[[ $line =~ ^[[:space:]]*$ ]] && continue
 		[[ $line =~ ^\[.*\]$ ]] && continue
 		[[ $line =~ ^([a-zA-Z_][a-zA-Z0-9_]*)[[:space:]]*=[[:space:]]*(.*)$ ]] || continue
-		
+
 		key="${BASH_REMATCH[1]}"
 		[[ " ${_CONFIG_KEYS[*]} " != *" $key "* ]] && continue
-		
+
 		value="${BASH_REMATCH[2]}"
 		value="${value#\"}"; value="${value%\"}"
 		value="${value#\'}"; value="${value%\'}"
-		
+
 		_CONFIG_VALUES["$key"]="$value"
 	done < "$file"
-	
+
 	_CONFIG_FILE="$file"
 	return 0
 }
