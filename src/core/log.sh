@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-import std/bash4
-import std/console
 import std/ansi
+import std/console
+
 
 : ${_LOG_USE_EXTRA:=false}
 : ${_LOG_LEVEL:=INFO}

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-import std/bash4
+import std/array
 import std/map
 import core/log
 import core/usage

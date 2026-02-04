@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 
-import std/bash4
-import std/console
 import std/ansi
-import std/array
+import std/console
 import std/map
 
 _USAGE_SCRIPT_FILENAME=${0##*/}
