@@ -110,7 +110,7 @@ show_test_stats() {
 
 # 主函数
 main() {
-	args.name.set "测试运行器"
+	args.name "测试运行器"
 
 	args.init "运行 bashlet 项目的 Bats 测试"
 	args.add_options "filter" "f" "只运行匹配模式的测试" "STRING"
@@ -127,9 +127,7 @@ main() {
 	args.add_options "notice" '测试应该在项目的 test/ 目录下运行'
 	args.add_options "notice" '测试文件必须使用 .bats 扩展名'
 
-	args.parse "$@"
-	args.verify || { args.show_help; exit 1; }
-	args.has "-h" "--help" && args.show_help && exit 0
+	args.process "$@"
 	#args.has "-c" "--count" && show_test_stats && exit 0
 	args.has "-c" "--count" && COUNT_ONLY="true" || COUNT_ONLY="false"
 	args.has "-v" "--verbose" && VERBOSE="true" || VERBOSE="false"
