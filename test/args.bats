@@ -10,6 +10,7 @@ setup() {
 
 teardown() {
 	unset _ARGS_OPTS _ARGS_ARGS _ARGS_OPT_ARGS _ARGS_OPTIONS _ARGS_OPTIONS_SWITCH _ARGS_OPTIONS_TYPE _ARGS_HELP_OPTIONS _ARGS_HELP_ARGS _ARGS_HELP_EXAMPLES _ARGS_HELP_NOTICES 2>/dev/null || true
+	_ARGS_CURRENT_SUBCOMMAND=""
 }
 
 # ============ args.get 测试 ============
@@ -334,6 +335,7 @@ setup_verify() {
 	args.add_options "file" "f" "指定输入文件" "FILE"
 	args.add_options "output" "o" "指定输出文件" "FILE"
 	args.add_options "quiet" "q" "安静模式"
+	args.add_options "arg" "a" "安静模式"
 }
 
 @test "args.verify - 已注册选项验证通过" {
@@ -435,16 +437,49 @@ setup_verify() {
 	[ $? -eq 0 ]
 }
 
-# ============ args.name.set / args.description.set 测试 ============
 
-@test "args.name.set - 设置显示名称" {
-	args.name.set "myscript"
+# ============ args.verify 位置参数验证测试 ============
+
+@test "args.verify - 未注册参数但有位置参数时失败" {
+	args.init
+	# 不注册任何 ARG，但提供位置参数
+	args.parse arg1 arg2
+	run args.verify
+	[ "$status" -ne 0 ]
+}
+
+@test "args.verify - 注册参数后有位置参数时通过" {
+	args.init
+	args.add_options "ARG" "input" "输入文件"
+	args.parse input.txt
+	args.verify
+	[ $? -eq 0 ]
+}
+
+@test "args.verify - 无注册参数也无位置参数时通过" {
+	args.init
+	args.parse
+	args.verify
+	[ $? -eq 0 ]
+}
+
+# ============ args.name / args.description 测试 ============
+
+@test "args.name - 设置显示名称" {
+	args.name "myscript"
 	[ "$_SCRIPT_DISPLAY" = "myscript" ]
 }
 
-@test "args.description.set - 设置脚本描述" {
-	args.description.set "A test script"
+@test "args.description - 设置脚本描述" {
+	args.description "A test script"
 	[ "$_SCRIPT_DESC" = "A test script" ]
+}
+
+@test "args.description - 空参数时返回失败不修改描述" {
+	_SCRIPT_DESC="existing"
+	run args.description ""
+	[ "$_SCRIPT_DESC" = "existing" ]
+	[ "$status" -ne 0 ]
 }
 
 # ============ args.init 测试 ============
@@ -563,6 +598,72 @@ setup_verify() {
 	[ "$result2" = "bar:arg2" ]
 }
 
+@test "args.add_subcommand - 子命令中再次添加不生效" {
+	# 模拟在子命令处理器中再次调用 add_subcommand
+	# 应当返回 0 而不修改任何数据
+	_ARGS_CURRENT_SUBCOMMAND="existing"
+	original_count=${#_ARGS_SUBCOMMANDS[@]}
+	args.add_subcommand "newcmd" "新命令" "new_handler"
+	[ ${#_ARGS_SUBCOMMANDS[@]} -eq $original_count ]
+}
+
+# ============ args.process 测试 ============
+
+@test "args.process - 无子命令时解析并验证参数" {
+	local tmp_script="/tmp/test_process_$$.sh"
+	cat > "$tmp_script" << 'SCRIPT'
+#!/usr/bin/env bash
+PROJECT_ROOT="/home/uglyboy/Code/bashlet"
+source "$PROJECT_ROOT/src/std/import.sh"
+import core/args
+args.init "测试脚本"
+args.add_options "file" "f" "输入文件" "FILE"
+args.process -f test.txt
+echo "success"
+SCRIPT
+	run bash "$tmp_script"
+	rm -f "$tmp_script"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"success"* ]]
+}
+
+@test "args.process - 显示帮助时退出状态为0" {
+	local tmp_script="/tmp/test_help_$$.sh"
+	cat > "$tmp_script" << 'SCRIPT'
+#!/usr/bin/env bash
+PROJECT_ROOT="/home/uglyboy/Code/bashlet"
+source "$PROJECT_ROOT/src/std/import.sh"
+import core/args
+args.init "测试脚本"
+args.add_options "file" "f" "输入文件" "FILE"
+args.process --help
+echo "after help"
+SCRIPT
+	run bash "$tmp_script"
+	rm -f "$tmp_script"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"Usage:"* ]]
+	[[ "$output" != *"after help"* ]]
+}
+
+@test "args.process - 验证失败时显示帮助并退出" {
+	local tmp_script="/tmp/test_verify_fail_$$.sh"
+	cat > "$tmp_script" << 'SCRIPT'
+#!/usr/bin/env bash
+PROJECT_ROOT="/home/uglyboy/Code/bashlet"
+source "$PROJECT_ROOT/src/std/import.sh"
+import core/args
+args.init
+args.add_options "file" "f" "输入文件" "FILE"
+args.process -f
+echo "should not reach"
+SCRIPT
+	run bash "$tmp_script"
+	rm -f "$tmp_script"
+	[ "$status" -eq 1 ]
+	[[ "$output" != *"should not reach"* ]]
+}
+
 # ============ 辅助函数测试 ============
 
 @test "args.opt_index - 返回选项的参数索引" {
@@ -594,6 +695,7 @@ setup_verify() {
 @test "args.args - 验证后返回最终参数数组" {
 	args.init
 	args.add_options "file" "f" "文件" "FILE"
+	args.add_options "arg" "a" "安静模式"
 	args.parse -f file.txt arg1 arg2
 	args.verify
 	result=$(args.args)
