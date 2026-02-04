@@ -16,21 +16,12 @@
 #   deploy   部署应用
 #
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BASHLET_DIR="$(dirname "$SCRIPT_DIR")"
-
-source "$BASHLET_DIR/src/std/import.sh"
+PROJECT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
+source "$PROJECT_ROOT/lib/std/import.sh"
 
 import core/args
 
-SCRIPT_VERSION="1.0.0"
-
-# ============================================================
-# 显示版本信息
-# ============================================================
-show_version() {
-	console.stderr "${BRIGHT_CYAN}${_SCRIPT_DISPLAY:-项目工具}${NC} version ${BRIGHT_GREEN}${SCRIPT_VERSION}${NC}"
-}
+VERSION="1.0.0"
 
 # ============================================================
 # 子命令: build - 构建项目
@@ -136,7 +127,7 @@ main() {
 	args.process "$@"
 
 	# 处理全局选项
-	args.has "-V" "--version" && { show_version; exit 0; }
+	args.has "-V" "--version" && { usage.version; exit 0; }
 	args.has "-v" "--verbose" && log.info "全局详细模式已启用"
 
 	# 无参数或未知情况，显示帮助

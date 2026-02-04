@@ -2,10 +2,8 @@
 
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LIB_DIR="${SCRIPT_DIR}/../src"
-
-source "${LIB_DIR}/std/import.sh"
+PROJECT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
+source "$PROJECT_ROOT/lib/std/import.sh"
 
 import core/config
 import core/log
