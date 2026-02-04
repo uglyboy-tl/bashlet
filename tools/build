@@ -1,0 +1,100 @@
+#!/usr/bin/env bash
+
+# Bin Updater Build Script - 将所有模块合并成单一文件
+
+set -euo pipefail
+
+LC_COLLATE=C
+
+PROJECT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
+source "$PROJECT_ROOT/lib/std/import.sh"
+
+import core/log
+import core/args
+
+# 处理 lib 文件：移除 shebang、set、注释，并删除空白行
+process_sub_file() {
+    local file="$1"
+    local content=""
+    local line
+
+    # 逐行读取文件
+    while IFS= read -r line || [ -n "$line" ]; do
+        # 删除行尾空白
+        line="${line%"${line##*[![:space:]]}"}"
+
+        # 如果不是空白行，则处理注释
+        if [[ -n "$line" ]]; then
+            # 只删除以空格或行首开始的 # 注释
+            # 这样可以保护 ${var#pattern} 和字符串中的 #
+            if [[ "$line" =~ ^[[:space:]]*# ]]; then
+                # 整行都是注释，跳过
+                continue
+            elif [[ "$line" =~ [[:space:]]# ]]; then
+                # 行中有注释，删除 # 及其后面的内容
+                line="${line%%#*}"
+                # 删除可能产生的行尾空白
+                line="${line%"${line##*[![:space:]]}"}"
+            fi
+
+            # 如果处理后还有内容，则添加
+            if [[ -n "$line" ]]; then
+                content="${content}${line}"$'\n'
+            fi
+        fi
+    done < "$file"
+
+    # 移除顶部的 shebang（处理多行情况）
+    content="${content#\#!/usr/bin/env bash}"
+    content="${content#\#!/bin/bash}"
+
+    # 移除顶部的 set 行
+    content="${content#set -euo pipefall}"
+    content="${content#set -euo pipefail}"
+
+    # 移除后续的 set 行
+    content=$(echo "$content" | grep -Ev '^set -euo pipefail$')
+
+    # 把所有 import 语句删除
+    content=$(echo "$content" | sed -E '/^[[:space:]]*(import|source) .*/d')
+
+    echo "$content"
+}
+
+build() {
+    log.info "开始构建..."
+
+    > "$OUTPUT_FILE"
+
+    {
+        echo '#!/usr/bin/env bash'
+        echo 'set -euo pipefail'
+    } >> "$OUTPUT_FILE"
+
+    # 合并所有 lib 文件
+    for file in lib/*/*.sh lib/*.sh "$MAIN_FILE"; do
+        log.info "合并: $file"
+        process_sub_file "$PROJECT_ROOT/$file" >> "$OUTPUT_FILE"
+    done
+
+    chmod +x "$OUTPUT_FILE"
+    local size
+    size=$(du -h "$OUTPUT_FILE" | cut -f1)
+    log.success "完成! 大小: $size"
+    log.info "最终文件: $OUTPUT_FILE"
+}
+
+main() {
+    args.init "Shell 脚本打包工具"
+    args.add_options "input" "f" "入口文件" "FILE"
+	args.add_options "output" "o" "输出文件" "STRING"
+    args.process "$@"
+    MAIN_FILE=$(args.get "-f" "--input" 2>/dev/null) || MAIN_FILE="main.sh"
+    OUTPUT_FILE=$(args.get "-o" "--output" 2>/dev/null) || OUTPUT_FILE="build/${MAIN_FILE,,}"
+    build
+}
+
+# 入口点
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+	main "$@"
+fi

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+CURRENT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SUBMODULE_DIR="$(dirname "$CURRENT_PATH")"
+SUBMODULE_NAME="$(basename "$SUBMODULE_DIR")"
+PROJECT_ROOT="$(dirname "$SUBMODULE_DIR")"
+LIB_DIR="$PROJECT_ROOT/lib"
+
+mkdir -p "$LIB_DIR"
+cd "$PROJECT_ROOT"
+[[ ! -d lib/core ]] && ln -rs "$SUBMODULE_NAME/lib/core" lib/
+[[ ! -d lib/std ]] && ln -rs "$SUBMODULE_NAME/lib/std" lib/
