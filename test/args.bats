@@ -39,26 +39,6 @@ teardown() {
 	[ "$status" -ne 0 ]
 }
 
-# ============ args.count 测试 ============
-
-@test "args.count - 统计三个位置参数" {
-	args.parse arg1 arg2 arg3
-	result=$(args.count)
-	[ "$result" = "3" ]
-}
-
-@test "args.count - 统计选项参数值作为位置参数" {
-	args.parse -v -f file.txt
-	result=$(args.count)
-	[ "$result" = "1" ]
-}
-
-@test "args.count - 无参数时返回 0" {
-	args.parse
-	result=$(args.count)
-	[ "$result" = "0" ]
-}
-
 # ============ args.arg 测试 ============
 
 @test "args.arg - 通过索引获取第一个位置参数" {
@@ -212,7 +192,7 @@ teardown() {
 	[ "${_ARGS_ARGS[1]}" = "arg1.txt" ]
 	[ "${_ARGS_ARGS[2]}" = "-f" ]
 	[ "${_ARGS_ARGS[3]}" = "arg2.txt" ]
-	[ $(args.count) -eq 4 ]
+	[ $(array.len _ARGS_ARGS) -eq 4 ]
 	[ "$(args.get "--output")" = "file.txt" ]
 	[ ${#_ARGS_OPT_ARGS[@]} -eq 1 ]
 }
@@ -243,7 +223,7 @@ teardown() {
 	[ "$status" -eq 0 ]
 	run args.has "-b"
 	[ "$status" -eq 0 ]
-	[ $(args.count) -eq 0 ]
+	[ $(array.len _ARGS_ARGS) -eq 0 ]
 }
 
 @test "args.parse - 混合组合参数和普通参数" {
@@ -264,7 +244,7 @@ teardown() {
 	[ "${_ARGS_OPTS[5]}" = "-e" ]
 	[ ${#_ARGS_OPTS[@]} -eq 6 ]
 	[ "${_ARGS_ARGS[0]}" = "file.txt" ]
-	[ $(args.count) -eq 1 ]
+	[ $(array.len _ARGS_ARGS) -eq 1 ]
 }
 
 @test "args.parse - 组合参数后存储选项参数值" {
@@ -277,7 +257,7 @@ teardown() {
 	run args.has "-f"
 	[ "$status" -eq 0 ]
 	[ "${_ARGS_ARGS[0]}" = "file.txt" ]
-	[ $(args.count) -eq 1 ]
+	[ $(array.len _ARGS_ARGS) -eq 1 ]
 	[ ${#_ARGS_OPT_ARGS[@]} -eq 1 ]
 	run args.get "-v"
 	[ "$status" -ne 0 ]
@@ -287,7 +267,7 @@ teardown() {
 
 # ============ 集成测试（多函数协作） ============
 
-@test "集成测试 - args.parse + args.has + args.get + args.count 典型场景" {
+@test "集成测试 - args.parse + args.has + args.get 典型场景" {
 	args.parse -v -f input.txt --output output.txt
 	run args.has "-v"
 	[ "$status" -eq 0 ]
@@ -295,7 +275,7 @@ teardown() {
 	[ "$(args.get "--output")" = "output.txt" ]
 	[ "${_ARGS_ARGS[0]}" = "input.txt" ]
 	[ "${_ARGS_ARGS[1]}" = "output.txt" ]
-	[ $(args.count) -eq 2 ]
+	[ $(array.len _ARGS_ARGS) -eq 2 ]
 }
 
 @test "集成测试 - args.parse + args.has 处理 -- 分隔符" {
@@ -323,7 +303,7 @@ teardown() {
 	[ "$(args.get "--long2")" = "val2" ]
 	[ "${_ARGS_ARGS[0]}" = "val1" ]
 	[ "${_ARGS_ARGS[1]}" = "val2" ]
-	[ $(args.count) -eq 2 ]
+	[ $(array.len _ARGS_ARGS) -eq 2 ]
 }
 
 # ============ args.verify 测试 ============
@@ -467,18 +447,18 @@ setup_verify() {
 
 @test "args.name - 设置显示名称" {
 	args.name "myscript"
-	[ "$_SCRIPT_DISPLAY" = "myscript" ]
+	[ "$_USAGE_SCRIPT_NAME" = "myscript" ]
 }
 
 @test "args.description - 设置脚本描述" {
 	args.description "A test script"
-	[ "$_SCRIPT_DESC" = "A test script" ]
+	[ "$_USAGE_SCRIPT_DESC" = "A test script" ]
 }
 
 @test "args.description - 空参数时返回失败不修改描述" {
-	_SCRIPT_DESC="existing"
+	_USAGE_SCRIPT_DESC="existing"
 	run args.description ""
-	[ "$_SCRIPT_DESC" = "existing" ]
+	[ "$_USAGE_SCRIPT_DESC" = "existing" ]
 	[ "$status" -ne 0 ]
 }
 
@@ -501,14 +481,14 @@ setup_verify() {
 
 @test "args.init - 带描述参数时设置描述" {
 	args.init "测试描述"
-	[ "$_SCRIPT_DESC" = "测试描述" ]
+	[ "$_USAGE_SCRIPT_DESC" = "测试描述" ]
 	[ "${#_ARGS_OPTIONS[@]}" -eq 2 ]  # 仍然有 help 选项
 }
 
 @test "args.init - 不带参数时不设置描述" {
-	unset _SCRIPT_DESC 2>/dev/null || true
+	unset _USAGE_SCRIPT_DESC 2>/dev/null || true
 	args.init
-	[ -z "$_SCRIPT_DESC" ]
+	[ -z "$_USAGE_SCRIPT_DESC" ]
 }
 
 # ============ args.add_options 测试 ============
@@ -666,21 +646,21 @@ SCRIPT
 
 # ============ 辅助函数测试 ============
 
-@test "args.opt_index - 返回选项的参数索引" {
+@test "args.opt.arg_index - 返回选项的参数索引" {
 	args.parse -f file.txt
-	result=$(args.opt_index "-f")
+	result=$(args.opt.arg_index "-f")
 	[ "$result" = "0" ]
 }
 
-@test "args.opt_index - 无参数的选项返回空" {
+@test "args.opt.arg_index - 无参数的选项返回空" {
 	args.parse -v
-	result=$(args.opt_index "-v")
+	result=$(args.opt.arg_index "-v")
 	[ -z "$result" ]
 }
 
-@test "args.opt_index - 不存在的选项返回空" {
+@test "args.opt.arg_index - 不存在的选项返回空" {
 	args.parse -f file.txt
-	result=$(args.opt_index "-x")
+	result=$(args.opt.arg_index "-x")
 	[ -z "$result" ]
 }
 
