@@ -3,7 +3,7 @@
 import std/bash4
 import std/map
 import core/log
-import core/help
+import core/usage
 
 declare -gA _ARGS_SUBCOMMANDS=()
 declare -gA _ARGS_SUBCOMMANDS_DESC=()
@@ -17,9 +17,9 @@ declare -gA _ARGS_HELP_ARGS=()
 declare -gA _ARGS_HELP_EXAMPLES=()
 declare -gA _ARGS_HELP_NOTICES=()
 
-args.name.set() { _SCRIPT_DISPLAY=$1; }
+args.name() { _SCRIPT_DISPLAY=$1; }
 
-args.description.set() { _SCRIPT_DESC=$1; }
+args.description() { [[ -n $1 ]] && _SCRIPT_DESC=$1; }
 
 args.init() {
 	_ARGS_OPTIONS=()
@@ -29,7 +29,7 @@ args.init() {
 	declare -gA _ARGS_HELP_ARGS=()
 	declare -gA _ARGS_HELP_EXAMPLES=()
 	declare -gA _ARGS_HELP_NOTICES=()
-	args.description.set "$1"
+	args.description "${1:-}" || { [[ -n $_ARGS_CURRENT_SUBCOMMAND ]] && args.description "${_ARGS_SUBCOMMANDS_DESC[$_ARGS_CURRENT_SUBCOMMAND]}"; }
 	args.add_options "help" "h" "显示帮助信息"
 }
 
@@ -59,6 +59,7 @@ args.add_options() {
 }
 
 args.add_subcommand() {
+	[[ -n $_ARGS_CURRENT_SUBCOMMAND ]] && return 0
 	_ARGS_SUBCOMMANDS["$1"]="$3"
 	_ARGS_SUBCOMMANDS_DESC["$1"]="$2"
 }
@@ -70,9 +71,17 @@ args.dispatch() {
 		_ARGS_CURRENT_SUBCOMMAND="$cmd"
 		shift
 		"$handler" "$@"
-		return $?
+		exit $?
 	}
 	return 1
+}
+
+args.process() {
+	[[ ! -n "$_ARGS_CURRENT_SUBCOMMAND" ]] && args.dispatch "$@" && exit 0
+	args.parse "$@"
+	args.verify || { args.show_help; exit 1; }
+	args.has "-h" "--help" && { args.show_help; exit 0; }
+	return 0
 }
 
 args.parse() {
@@ -116,6 +125,8 @@ args.verify() {
 	for value in "${_ARGS_OPT_ARGS[@]}"; do
 		unset _ARGS_FINAL_ARGS[$value]
 	done
+	[[ $(map.len _ARGS_HELP_ARGS) -eq 0 ]] && [[ $(array.len _ARGS_FINAL_ARGS) -gt 0 ]] && log.error "位置参数错误" && return 1
+	return 0
 }
 
 args.has() {
@@ -145,7 +156,7 @@ args.arg() { array.get _ARGS_ARGS "$1"; }
 args.opt_index() { echo "${_ARGS_OPT_ARGS[$1]:-}"; }
 
 args.show_help() {
-	help.show _ARGS_HELP_OPTIONS _ARGS_HELP_ARGS _ARGS_HELP_EXAMPLES _ARGS_HELP_NOTICES
+	usage.show _ARGS_HELP_OPTIONS _ARGS_HELP_ARGS _ARGS_HELP_EXAMPLES _ARGS_HELP_NOTICES
 }
 
 args.debug_options() {
