@@ -6,21 +6,23 @@ import std/ansi
 import std/array
 import std/map
 
-_SCRIPT_NAME=${0##*/}
-: ${_SCRIPT_DISPLAY:=$_SCRIPT_NAME}
+_USAGE_SCRIPT_FILENAME=${0##*/}
+: ${_USAGE_SCRIPT_NAME:=$_USAGE_SCRIPT_FILENAME}
+_USAGE_SCRIPT_DESC=""
 
-# 当前子命令（用于帮助显示）
-_SCRIPT_DESC=""
+usage.name.set() { _USAGE_SCRIPT_NAME="$1"; }
+
+usage.description.set() { [[ -n "$1" ]] && _USAGE_SCRIPT_DESC="$1"; }
 
 usage.title() {
-	local _title="$_SCRIPT_DISPLAY"
+	local _title="$_USAGE_SCRIPT_NAME"
 	[[ -n $_ARGS_CURRENT_SUBCOMMAND ]] && _title="$_title - $_ARGS_CURRENT_SUBCOMMAND"
-	[[ -n $_SCRIPT_DESC ]] && _title="$_title - $_SCRIPT_DESC"
+	[[ -n $_USAGE_SCRIPT_DESC ]] && _title="$_title - $_USAGE_SCRIPT_DESC"
 	console.stderr "${Bold}${_title}${NC}"
 }
 
 usage.usage() {
-	local _usage_line="${BRIGHT_BLUE}Usage:${NC} ${BRIGHT_CYAN}$_SCRIPT_NAME${NC}"
+	local _usage_line="${BRIGHT_BLUE}Usage:${NC} ${BRIGHT_CYAN}$_USAGE_SCRIPT_FILENAME${NC}"
 	local subcommand="${_ARGS_CURRENT_SUBCOMMAND:-<subcommand>}"
 	(( ${1:-0} )) && _usage_line="${_usage_line} ${BRIGHT_MAGENTA}$subcommand${NC}"
 	(( ${2:-0} )) && _usage_line="${_usage_line} ${BRIGHT_YELLOW}[OPTIONS]${NC}"
@@ -52,7 +54,7 @@ usage.section.items() {
 usage.footer() {
 	[[ ${#_ARGS_SUBCOMMANDS[@]} -eq 0 ]] && return 0
 	echo ""
-	console.stderr "${BRIGHT_BLACK}Use '${BRIGHT_WHITE}$_SCRIPT_NAME <subcommand> --help${BRIGHT_BLACK}' for subcommand help${NC}"
+	console.stderr "${BRIGHT_BLACK}Use '${BRIGHT_WHITE}$_USAGE_SCRIPT_FILENAME <subcommand> --help${BRIGHT_BLACK}' for subcommand help${NC}"
 }
 
 usage.show() {
