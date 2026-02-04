@@ -5,19 +5,16 @@ load 'test_helper/common-setup'
 setup() {
 	_common_setup
 	import core/usage
-	unset _SCRIPT_NAME _SCRIPT_DESC 2>/dev/null || true
-	unset _ARGS_CURRENT_SUBCOMMAND 2>/dev/null || true
+	unset _USAGE_SCRIPT_NAME _USAGE_SCRIPT_DESC _ARGS_CURRENT_SUBCOMMAND 2>/dev/null || true
 	declare -g _ARGS_CURRENT_SUBCOMMAND=""
 	declare -gA _ARGS_SUBCOMMANDS=()
 }
 
 teardown() {
-	unset _SCRIPT_NAME _SCRIPT_DESC 2>/dev/null || true
+	unset _USAGE_SCRIPT_NAME _SCRIPT_DESC 2>/dev/null || true
 }
 
 @test "usage.show - 显示完整帮助" {
-	_SCRIPT_NAME="test"
-	_SCRIPT_DESC="Test script"
 	_ARGS_SUBCOMMANDS["test"]="test_handler"
 
 	declare -A opts=(
@@ -36,8 +33,8 @@ teardown() {
 }
 
 @test "usage.show - 包含描述时显示标题" {
-	_SCRIPT_NAME="myapp"
-	_SCRIPT_DESC="Process files"
+	_USAGE_SCRIPT_NAME="myapp"
+	_USAGE_SCRIPT_DESC="Process files"
 
 	declare -A opts=(["-h, --help"]="Show help")
 	declare -A args=()
@@ -50,8 +47,8 @@ teardown() {
 }
 
 @test "usage.show - 无描述时只显示名称" {
-	_SCRIPT_NAME="simple"
-	unset _SCRIPT_DESC 2>/dev/null || true
+	_USAGE_SCRIPT_NAME="simple"
+	unset _USAGE_SCRIPT_DESC 2>/dev/null || true
 
 	declare -A opts=(["-h, --help"]="Show help")
 	declare -A args=()
@@ -63,9 +60,6 @@ teardown() {
 }
 
 @test "usage.show - 包含notices" {
-	_SCRIPT_NAME="test"
-	_SCRIPT_DESC="Test"
-
 	declare -A opts=(["-h, --help"]="Show help")
 	declare -A args=()
 	declare -A examples=()
@@ -77,9 +71,6 @@ teardown() {
 }
 
 @test "usage.show - 只有选项时Usage显示[OPTIONS]" {
-	_SCRIPT_NAME="cmd"
-	_SCRIPT_DESC="Test"
-
 	declare -A opts=(["-h, --help"]="Show help" ["-v, --verbose"]="Verbose")
 	declare -A args=()
 	declare -A examples=()
@@ -91,9 +82,6 @@ teardown() {
 }
 
 @test "usage.show - 有选项和参数时Usage显示两者" {
-	_SCRIPT_NAME="cmd"
-	_SCRIPT_DESC="Test"
-
 	declare -A opts=(["-h, --help"]="Show help" ["-f, --file FILE"]="File")
 	declare -A args=(["input"]="Input file")
 	declare -A examples=()
@@ -106,9 +94,6 @@ teardown() {
 }
 
 @test "usage.show - 空选项和空参数时Usage不显示可选部分" {
-	_SCRIPT_NAME="cmd"
-	_SCRIPT_DESC="Test"
-
 	declare -A opts=()
 	declare -A args=()
 	declare -A examples=()
@@ -132,15 +117,12 @@ teardown() {
 }
 
 @test "usage.usage - 存在子命令时显示<subcommand>" {
-	_SCRIPT_NAME="test"
-
 	output=$(usage.usage 1 0 0 2>&1)
 	[[ "$output" == *"Usage:"* ]]
 	[[ "$output" == *"<subcommand>"* ]]
 }
 
 @test "usage.usage - 有具体子命令时显示具体命令" {
-	_SCRIPT_NAME="test"
 	_ARGS_CURRENT_SUBCOMMAND="test-command"
 
 	output=$(usage.usage 1 0 0 2>&1)
@@ -149,24 +131,18 @@ teardown() {
 }
 
 @test "usage.usage - 有选项时显示[OPTIONS]" {
-	_SCRIPT_NAME="test"
-
 	output=$(usage.usage 0 1 0 2>&1)
 	[[ "$output" == *"Usage:"* ]]
 	[[ "$output" == *"[OPTIONS]"* ]]
 }
 
 @test "usage.usage - 有参数时显示[ARGUMENTS]" {
-	_SCRIPT_NAME="test"
-
 	output=$(usage.usage 0 0 1 2>&1)
 	[[ "$output" == *"Usage:"* ]]
 	[[ "$output" == *"[ARGUMENTS]"* ]]
 }
 
 @test "usage.usage - 两者都有时显示完整" {
-	_SCRIPT_NAME="test"
-
 	output=$(usage.usage 1 1 1 2>&1)
 	[[ "$output" == *"<subcommand>"* ]]
 	[[ "$output" == *"[OPTIONS]"* ]]
@@ -174,8 +150,6 @@ teardown() {
 }
 
 @test "usage.show - 显示 Commands 部分当有子命令描述" {
-	_SCRIPT_NAME="myapp"
-	_SCRIPT_DESC="Application"
 	declare -gA _ARGS_SUBCOMMANDS_DESC=(
 		["build"]="构建项目"
 		["test"]="运行测试"
@@ -195,8 +169,6 @@ teardown() {
 }
 
 @test "usage.show - 子命令模式下不显示 Commands 部分" {
-	_SCRIPT_NAME="myapp"
-	_SCRIPT_DESC="Application"
 	declare -g _ARGS_CURRENT_SUBCOMMAND="build"
 	declare -gA _ARGS_SUBCOMMANDS_DESC=(
 		["build"]="构建项目"
@@ -214,9 +186,6 @@ teardown() {
 }
 
 @test "usage.show - 输出以空行开始" {
-	_SCRIPT_NAME="test"
-	_SCRIPT_DESC="Test script"
-
 	declare -A opts=(["-h, --help"]="Show help")
 	declare -A args=()
 	declare -A examples=()
