@@ -59,7 +59,7 @@ args.has "-v" "--verbose" && log.info "详细模式已启用"
 |------|------|
 | `args` | 参数解析、选项管理、帮助生成 |
 | `log` | 分级日志输出（debug/info/warn/error/success） |
-| `help` | 帮助信息格式化显示 |
+| `usage` | 帮助信息格式化显示 |
 
 ### 标准库 (std/)
 
