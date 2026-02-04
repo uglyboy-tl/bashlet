@@ -418,3 +418,76 @@ teardown() {
 	# 时间戳应该由 WHITE 开头，后面跟着 NC 重置
 	[[ "$output" == *$WHITE[0-9]* ]] || [[ "$output" == *$WHITE* ]]
 }
+
+# ========== 返回状态码测试（新增测试用例） ==========
+
+@test "log.debug - 总是返回状态码 0" {
+	log.setLevel DEBUG
+	run log.debug "test message"
+	[ "$status" -eq 0 ]
+}
+
+@test "log.debug - 等级过滤时也返回状态码 0" {
+	# INFO 级别，DEBUG 应该被过滤
+	run log.debug "should not appear"
+	[ "$status" -eq 0 ]
+	[ "$output" = "" ]
+}
+
+@test "log.info - 总是返回状态码 0" {
+	run log.info "test message"
+	[ "$status" -eq 0 ]
+}
+
+@test "log.info - 等级过滤时也返回状态码 0" {
+	log.setLevel WARN
+	run log.info "should not appear"
+	[ "$status" -eq 0 ]
+	[ "$output" = "" ]
+}
+
+@test "log.success - 总是返回状态码 0" {
+	run log.success "test message"
+	[ "$status" -eq 0 ]
+}
+
+@test "log.success - 等级过滤时也返回状态码 0" {
+	log.setLevel WARN
+	run log.success "should not appear"
+	[ "$status" -eq 0 ]
+	[ "$output" = "" ]
+}
+
+@test "log.warn - 总是返回状态码 0" {
+	log.setLevel WARN
+	run log.warn "test message"
+	[ "$status" -eq 0 ]
+}
+
+@test "log.warn - 等级过滤时也返回状态码 0" {
+	log.setLevel ERROR
+	run log.warn "should not appear"
+	[ "$status" -eq 0 ]
+	[ "$output" = "" ]
+}
+
+@test "log.error - 总是返回状态码 0" {
+	log.setLevel ERROR
+	run log.error "test message"
+	[ "$status" -eq 0 ]
+}
+
+@test "log() - 直接调用也返回状态码 0" {
+	run log info "test message"
+	[ "$status" -eq 0 ]
+}
+
+@test "log.setLevel - 设置有效等级返回状态码 0" {
+	run log.setLevel DEBUG
+	[ "$status" -eq 0 ]
+}
+
+@test "log.setLevel - 设置无效等级返回非零状态码" {
+	run log.setLevel INVALID
+	[ "$status" -ne 0 ]
+}

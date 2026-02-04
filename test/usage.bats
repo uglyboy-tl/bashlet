@@ -195,3 +195,53 @@ teardown() {
 	# 输出应该以空行开始
 	[[ "${output:0:1}" == $'\n' ]] || [[ "$output" =~ ^[[:space:]] ]]
 }
+
+# ========== usage.version 测试（新增测试用例） ==========
+
+@test "usage.version - 显示版本信息" {
+	_USAGE_SCRIPT_NAME="myapp"
+	VERSION="1.0.0"
+	
+	output=$(usage.version 2>&1)
+	[[ "$output" == *"myapp"* ]]
+	[[ "$output" == *"version"* ]]
+	[[ "$output" == *"1.0.0"* ]]
+}
+
+@test "usage.version - 使用彩色输出" {
+	_USAGE_SCRIPT_NAME="testapp"
+	VERSION="2.3.4"
+	
+	output=$(usage.version 2>&1)
+	# 检查是否包含ANSI颜色代码
+	[[ "$output" == *$BRIGHT_CYAN* ]] || [[ "$output" == *"\033["* ]]
+	[[ "$output" == *$BRIGHT_GREEN* ]] || [[ "$output" == *"\033["* ]]
+	[[ "$output" == *$NC* ]] || [[ "$output" == *"\033["* ]]
+}
+
+@test "usage.version - 脚本名未设置时使用默认值" {
+	unset _USAGE_SCRIPT_NAME
+	VERSION="0.1.0"
+	
+	output=$(usage.version 2>&1)
+	# 应该输出版本信息，即使脚本名是默认值
+	[[ "$output" == *"version"* ]]
+	[[ "$output" == *"0.1.0"* ]]
+}
+
+@test "usage.version - 总是返回状态码 0" {
+	_USAGE_SCRIPT_NAME="test"
+	VERSION="1.0"
+	
+	run usage.version
+	[ "$status" -eq 0 ]
+}
+
+@test "usage.version - 空版本号也正常工作" {
+	_USAGE_SCRIPT_NAME="app"
+	VERSION=""
+	
+	output=$(usage.version 2>&1)
+	[[ "$output" == *"app"* ]]
+	[[ "$output" == *"version"* ]]
+}
