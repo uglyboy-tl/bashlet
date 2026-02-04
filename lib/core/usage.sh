@@ -78,3 +78,5 @@ usage.show() {
 	[[ -z $_cmd_ref ]] && usage.footer
 	return 0
 }
+
+usage.version() { console.stderr "${BRIGHT_CYAN}${_USAGE_SCRIPT_NAME}${NC} version ${BRIGHT_GREEN}${VERSION}${NC}"; }
