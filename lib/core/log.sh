@@ -23,6 +23,7 @@ log() {
 	local -r level="${1^^}"
 	local -r timestamp=$(date +"%m-%d %H:%M:%S ")
 	local -r script_name="$(basename "$0")"
+	local flag
 
 	case "$level" in
 		SUCCESS) flag="$GREEN[$level]$NC" ;;
@@ -36,7 +37,7 @@ log() {
 	[[ -z "$flag" ]] || shift
 
 	local prefix extra=""
-	[[ "$_LOG_USE_EXTRA" == true ]] && extra="${BASH_SOURCE[1]##*/}:${BASH_LINENO[0]}"
+	[[ "$_LOG_USE_EXTRA" == true ]] && extra="${BASH_SOURCE[2]##*/}:${BASH_LINENO[0]}"
 	[[ -z "$extra" ]] || extra="$WHITE(${extra})$NC"
 	prefix="$WHITE$timestamp$NC$flag$extra"
 	console.stderr "$prefix $@";
