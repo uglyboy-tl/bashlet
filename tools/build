@@ -12,6 +12,8 @@ source "$PROJECT_ROOT/lib/std/import.sh"
 import core/log
 import core/args
 
+.env
+
 # 处理 lib 文件：移除 shebang、set、注释，并删除空白行
 process_sub_file() {
     local file="$1"
@@ -71,8 +73,14 @@ build() {
         echo 'set -euo pipefail'
     } >> "$OUTPUT_FILE"
 
+    [[ -z SCRIPT_NAME ]] && echo "SCRIPT_NAME=\"$SCRIPT_NAME\"" >> "$OUTPUT_FILE"
+    [[ -z VERSION ]] && echo "VERSION=\"$VERSION\"" >> "$OUTPUT_FILE"
+
     # 合并所有 lib 文件
-    for file in lib/*/*.sh lib/*.sh "$MAIN_FILE"; do
+    local lib_files="lib/*/*.sh"
+    compgen -G "lib/*.sh" > /dev/null && lib_files="$lib_files lib/*.sh"
+    lib_files="$lib_files $MAIN_FILE"
+    for file in $lib_files; do
         log.info "合并: $file"
         process_sub_file "$PROJECT_ROOT/$file" >> "$OUTPUT_FILE"
     done
@@ -86,11 +94,12 @@ build() {
 
 main() {
     args.init "Shell 脚本打包工具"
-    args.add_options "input" "f" "入口文件" "FILE"
+    args.add_options "arg" "编译文件" "所有待编译的文件（默认只包含 main.sh）"
 	args.add_options "output" "o" "输出文件" "STRING"
     args.process "$@"
-    MAIN_FILE=$(args.get "-f" "--input" 2>/dev/null) || MAIN_FILE="main.sh"
-    OUTPUT_FILE=$(args.get "-o" "--output" 2>/dev/null) || OUTPUT_FILE="build/${MAIN_FILE,,}"
+	declare -n args=$(args.args)
+	[[ ${#args[@]} -ne 0 ]] && MAIN_FILE="${args[@]}" || MAIN_FILE="main.sh"
+    OUTPUT_FILE=$(args.get "-o" "--output" 2>/dev/null) || { local name="${SCRIPT_NAME:-${MAIN_FILE%% *}}"; OUTPUT_FILE="build/${name,,}";}
     build
 }
 
