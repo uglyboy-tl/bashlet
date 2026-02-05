@@ -32,9 +32,10 @@ process_sub_file() {
             if [[ "$line" =~ ^[[:space:]]*# ]]; then
                 # 整行都是注释，跳过
                 continue
-            elif [[ "$line" =~ [[:space:]]# ]]; then
-                # 行中有注释，删除 # 及其后面的内容
-                line="${line%%#*}"
+            else
+                # 删除真正的行尾注释（# 前面有空格）
+                # 使用 sed: 匹配空格+#[任意内容] 到行尾
+                [[ "$line" == *" #"* ]] && line="${line%% #*}"
                 # 删除可能产生的行尾空白
                 line="${line%"${line##*[![:space:]]}"}"
             fi
