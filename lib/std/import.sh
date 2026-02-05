@@ -23,3 +23,5 @@ import() {
 		source "${mod}.sh" 2>/dev/null || source "$mod" 2>/dev/null || return 1
 	done
 }
+
+.env(){ [[ -f .env ]] && source .env; }
