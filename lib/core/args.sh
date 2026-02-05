@@ -155,13 +155,3 @@ args.opt.arg_index() { echo "${_ARGS_OPT_ARGS[$1]:-}"; }
 args.show_help() {
 	usage.show _ARGS_HELP_OPTIONS _ARGS_HELP_ARGS _ARGS_HELP_EXAMPLES _ARGS_HELP_NOTICES
 }
-
-args.debug_options() {
-	log.debug "$(declare -p _ARGS_OPTIONS)"
-	log.debug "$(declare -p _ARGS_OPTIONS_SWITCH)"
-	log.debug "$(declare -p _ARGS_OPTIONS_TYPE)"
-	log.debug "$(declare -p _ARGS_HELP_OPTIONS)"
-	log.debug "$(declare -p _ARGS_HELP_ARGS)"
-	log.debug "$(declare -p _ARGS_HELP_EXAMPLES)"
-	log.debug "$(declare -p _ARGS_HELP_NOTICES)"
-}

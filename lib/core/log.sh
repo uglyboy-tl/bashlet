@@ -3,7 +3,6 @@
 import std/ansi
 import std/console
 
-
 : ${_LOG_USE_EXTRA:=false}
 : ${_LOG_LEVEL:=INFO}
 
