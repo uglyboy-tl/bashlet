@@ -12,7 +12,7 @@ BATS_EXEC="$BATS_DIR/bin/bats"
 source "$PROJECT_ROOT/lib/std/import.sh"
 
 import core/args
-import std/files
+import std/file
 
 
 # 检查Bats是否可用

@@ -278,6 +278,74 @@ teardown() {
 	! config.array.has "nonexistent"
 }
 
+@test "config.array.add: basic add" {
+	config.array.add "servers" "prod"
+	[[ " ${_CONFIG_ARRAY_ITEMS[servers]} " == *" prod "* ]]
+}
+
+@test "config.array.add: allows duplicate adds" {
+	config.array.add "servers" "prod"
+	config.array.add "servers" "prod"
+	[[ " ${_CONFIG_ARRAY_ITEMS[servers]} " == *" prod "* ]]
+}
+
+@test "config.array.add: multiple items" {
+	config.array.add "servers" "prod"
+	config.array.add "servers" "dev"
+	config.array.add "servers" "staging"
+	[[ " ${_CONFIG_ARRAY_ITEMS[servers]} " == *" prod "* ]]
+	[[ " ${_CONFIG_ARRAY_ITEMS[servers]} " == *" dev "* ]]
+	[[ " ${_CONFIG_ARRAY_ITEMS[servers]} " == *" staging "* ]]
+}
+
+@test "config.array.set: set fields and auto create item" {
+	config.array.register "servers" "host" "" "string"
+	config.array.register "servers" "port" "" "string"
+	[[ ! " ${_CONFIG_ARRAY_ITEMS[servers]:-} " == *" prod "* ]]
+	config.array.set "servers" "prod" "host" "1.1.1.1"
+	config.array.set "servers" "prod" "port" "8080"
+	[ "${_CONFIG_VALUES[servers.prod.host]}" = "1.1.1.1" ]
+	[ "${_CONFIG_VALUES[servers.prod.port]}" = "8080" ]
+	[[ " ${_CONFIG_ARRAY_ITEMS[servers]} " == *" prod "* ]]
+}
+
+@test "config.array.set: update existing value" {
+	config.array.register "servers" "host" "" "string"
+	config.array.set "servers" "prod" "host" "1.1.1.1"
+	[ "${_CONFIG_VALUES[servers.prod.host]}" = "1.1.1.1" ]
+	config.array.set "servers" "prod" "host" "2.2.2.2"
+	[ "${_CONFIG_VALUES[servers.prod.host]}" = "2.2.2.2" ]
+}
+
+@test "config.array.set: multiple items with same field" {
+	config.array.register "servers" "host" "" "string"
+	config.array.set "servers" "prod" "host" "1.1.1.1"
+	config.array.set "servers" "dev" "host" "2.2.2.2"
+	[ "${_CONFIG_VALUES[servers.prod.host]}" = "1.1.1.1" ]
+	[ "${_CONFIG_VALUES[servers.dev.host]}" = "2.2.2.2" ]
+}
+
+@test "config.array.set: unregistered array returns error" {
+	! config.array.set "nonexistent" "prod" "host" "1.1.1.1"
+}
+
+@test "config.array.set: unregistered field returns error" {
+	config.array.register "servers" "host" "" "string"
+	! config.array.set "servers" "prod" "unregistered_field" "value"
+}
+
+@test "config.array.set: empty value is allowed" {
+	config.array.register "servers" "host" "" "string"
+	config.array.set "servers" "prod" "host" ""
+	[ "${_CONFIG_VALUES[servers.prod.host]}" = "" ]
+}
+
+@test "config.array.set: item with dot in name" {
+	config.array.register "servers" "host" "" "string"
+	config.array.set "servers" "v1.0" "host" "1.1.1.1"
+	[ "${_CONFIG_VALUES[servers.v1.0.host]}" = "1.1.1.1" ]
+}
+
 @test "config.array.has: check item existence after load" {
 	config.array.register "servers" "prod" "" "string"
 	config.register "servers.host" "" "string"
@@ -308,7 +376,7 @@ teardown() {
 	! config.array.has "servers" "prod" "unregistered"
 }
 
-@test "config.array.keys: get items after load" {
+@test "config.array.items: get items after load" {
 	config.array.register "servers" "prod" "" "string"
 	config.register "servers.host" "" "string"
 	{
@@ -318,19 +386,19 @@ teardown() {
 		echo 'host = "2.2.2.2"'
 	} > /tmp/test_config_$$.toml
 	config.load /tmp/test_config_$$.toml
-	result=$(config.array.keys "servers")
+	result=$(config.array.items "servers")
 	[[ "$result" == *"prod"* ]]
 	[[ "$result" == *"dev"* ]]
 }
 
-@test "config.array.keys: nonexistent array" {
-	result=$(config.array.keys "nonexistent" || true)
+@test "config.array.items: nonexistent array" {
+	result=$(config.array.items "nonexistent" || true)
 	[ -z "$result" ]
 }
 
-@test "config.array.keys: empty array" {
+@test "config.array.items: empty array" {
 	_CONFIG_ARRAY_REGISTERED["empty_array"]=""
-	result=$(config.array.keys "empty_array" || true)
+	result=$(config.array.items "empty_array" || true)
 	[ -z "$result" ]
 }
 
@@ -440,4 +508,260 @@ teardown() {
 	echo 'key1 = "second"' > /tmp/test_config_$$.toml
 	config.load /tmp/test_config_$$.toml
 	[ "${_CONFIG_VALUES[key1]}" = "second" ]
+}
+
+@test "config.save: basic save and reload" {
+	config.register "name" "myapp" "string"
+	config.register "version" "1.0.0" "string"
+	config.save /tmp/test_save_$$.toml
+	_CONFIG_VALUES=()
+	config.register "name" "" "string"
+	config.register "version" "" "string"
+	config.load /tmp/test_save_$$.toml
+	[ "$(config.get name)" = "myapp" ]
+	[ "$(config.get version)" = "1.0.0" ]
+}
+
+@test "config.save: save with sections" {
+	config.register "database.host" "localhost" "string"
+	config.register "database.port" "3306" "string"
+	config.register "cache.enabled" "true" "bool"
+	config.save /tmp/test_save_$$.toml
+	_CONFIG_VALUES=()
+	config.register "database.host" "" "string"
+	config.register "database.port" "" "string"
+	config.register "cache.enabled" "" "bool"
+	config.load /tmp/test_save_$$.toml
+	[ "$(config.get database.host)" = "localhost" ]
+	[ "$(config.get database.port)" = "3306" ]
+	[ "$(config.get cache.enabled)" = "true" ]
+}
+
+@test "config.save: save array config" {
+	config.array.register "servers" "host" "" "string"
+	config.array.register "servers" "port" "" "string"
+	config.array.set "servers" "prod" "host" "1.1.1.1"
+	config.array.set "servers" "prod" "port" "8080"
+	config.array.set "servers" "dev" "host" "2.2.2.2"
+	config.array.set "servers" "dev" "port" "8081"
+	config.save /tmp/test_save_$$.toml
+	_CONFIG_VALUES=()
+	_CONFIG_ARRAY_ITEMS=()
+	config.array.register "servers" "host" "" "string"
+	config.array.register "servers" "port" "" "string"
+	config.load /tmp/test_save_$$.toml
+	[ "$(config.array.get servers prod host)" = "1.1.1.1" ]
+	[ "$(config.array.get servers prod port)" = "8080" ]
+	[ "$(config.array.get servers dev host)" = "2.2.2.2" ]
+	[ "$(config.array.get servers dev port)" = "8081" ]
+}
+
+@test "config.save: skip array field definitions" {
+	config.array.register "servers" "host" "" "string"
+	config.array.register "servers" "port" "" "string"
+	config.array.set "servers" "prod" "host" "1.1.1.1"
+	config.save /tmp/test_save_$$.toml
+	grep -q "\[servers\]$" /tmp/test_save_$$.toml && return 1 || true
+}
+
+@test "config.save: empty config" {
+	config.save /tmp/test_save_$$.toml
+	[ -f /tmp/test_save_$$.toml ]
+	local content=$(cat /tmp/test_save_$$.toml)
+	[ -z "$content" ]
+}
+
+# ========== 过滤功能测试 ==========
+
+@test "config.save: filter_keys - save only specified keys" {
+	config.register "global.name" "myapp" "string"
+	config.register "global.version" "1.0.0" "string"
+	config.register "database.host" "localhost" "string"
+	config.register "database.port" "3306" "string"
+
+	local -a filter_keys=("global.name" "database.host")
+	config.save /tmp/test_filter_keys_$$.toml filter_keys
+
+	# 验证只保存了指定的键
+	grep -q '\[global\]' /tmp/test_filter_keys_$$.toml
+	grep -q 'name = "myapp"' /tmp/test_filter_keys_$$.toml
+	grep -q '\[database\]' /tmp/test_filter_keys_$$.toml
+	grep -q 'host = "localhost"' /tmp/test_filter_keys_$$.toml
+	! grep -q 'version' /tmp/test_filter_keys_$$.toml
+	! grep -q 'port' /tmp/test_filter_keys_$$.toml
+}
+
+@test "config.save: filter_keys - with sections" {
+	config.register "section1.key1" "value1" "string"
+	config.register "section1.key2" "value2" "string"
+	config.register "section2.key1" "value3" "string"
+
+	local -a filter_keys=("section1.key1" "section2.key1")
+	config.save /tmp/test_filter_sections_$$.toml filter_keys
+
+	# 验证正确的节和键被保存
+	grep -q '\[section1\]' /tmp/test_filter_sections_$$.toml
+	grep -q 'key1 = "value1"' /tmp/test_filter_sections_$$.toml
+	grep -q '\[section2\]' /tmp/test_filter_sections_$$.toml
+	grep -q 'key1 = "value3"' /tmp/test_filter_sections_$$.toml
+	! grep -q 'key2 = "value2"' /tmp/test_filter_sections_$$.toml
+}
+
+@test "config.save: filter_arrays - save only specified array items" {
+	config.array.register "servers" "host" "" "string"
+	config.array.register "servers" "port" "" "string"
+	config.array.register "servers" "url" "" "string"
+	config.array.set "servers" "prod" "host" "1.1.1.1"
+	config.array.set "servers" "prod" "port" "8080"
+	config.array.set "servers" "prod" "url" "test"
+	config.array.set "servers" "dev" "host" "2.2.2.2"
+	config.array.set "servers" "dev" "port" "8081"
+	config.array.set "servers" "dev" "url" "test"
+
+	local -A filter_arrays=([servers]="host port")
+	config.save /tmp/test_filter_arrays_$$.toml "" filter_arrays
+
+	# 验证只保存了指定的数组项
+	grep -q '\[servers.prod\]' /tmp/test_filter_arrays_$$.toml
+	grep -q 'host = "1.1.1.1"' /tmp/test_filter_arrays_$$.toml
+	grep -q 'port = "8080"' /tmp/test_filter_arrays_$$.toml
+	grep -q '\[servers.dev\]' /tmp/test_filter_arrays_$$.toml
+	grep -q 'host = "2.2.2.2"' /tmp/test_filter_arrays_$$.toml
+	grep -q 'port = "8081"' /tmp/test_filter_arrays_$$.toml
+	! grep -q 'url = "test"' /tmp/test_filter_arrays_$$.toml
+}
+
+@test "config.save: both filters - combine filter_keys and filter_arrays" {
+	config.register "global.name" "myapp" "string"
+	config.register "global.version" "1.0.0" "string"
+	config.register "database.host" "localhost" "string"
+
+	config.array.register "servers" "host" "" "string"
+	config.array.register "servers" "port" "" "string"
+	config.array.set "servers" "prod" "host" "1.1.1.1"
+	config.array.set "servers" "prod" "port" "8080"
+	config.array.set "servers" "dev" "host" "2.2.2.2"
+	config.array.set "servers" "dev" "port" "8081"
+
+	local -a filter_keys=("global.name" "database.host")
+	local -A filter_arrays=([servers]="host")
+	config.save /tmp/test_both_filters_$$.toml filter_keys filter_arrays
+
+	# 验证普通键过滤
+	grep -q '\[global\]' /tmp/test_both_filters_$$.toml
+	grep -q 'name = "myapp"' /tmp/test_both_filters_$$.toml
+	grep -q '\[database\]' /tmp/test_both_filters_$$.toml
+	grep -q 'host = "localhost"' /tmp/test_both_filters_$$.toml
+	! grep -q 'global.version' /tmp/test_both_filters_$$.toml
+
+	# 验证数组过滤
+	grep -q '\[servers.prod\]' /tmp/test_both_filters_$$.toml
+	grep -q '\[servers.dev\]' /tmp/test_both_filters_$$.toml
+	grep -q 'host = "1.1.1.1"' /tmp/test_both_filters_$$.toml
+	! grep -q 'port = "8080"' /tmp/test_both_filters_$$.toml
+	! grep -q 'port = "8081"' /tmp/test_both_filters_$$.toml
+}
+
+@test "config.save: filter_arrays - multiple arrays" {
+	config.array.register "servers" "host" "" "string"
+	config.array.register "servers" "port" "" "string"
+	config.array.register "clients" "name" "" "string"
+
+	config.array.set "servers" "prod" "host" "1.1.1.1"
+	config.array.set "servers" "prod" "port" "8080"
+	config.array.set "servers" "dev" "host" "2.2.2.2"
+	config.array.set "servers" "dev" "port" "8081"
+	config.array.set "clients" "client1" "name" "Alice"
+	config.array.set "clients" "client2" "name" "Bob"
+	config.array.set "clients" "client3" "name" "Charlie"
+
+	local -A filter_arrays=([servers]="host" [clients]="name")
+	config.save /tmp/test_multi_arrays_$$.toml "" filter_arrays
+
+	# 验证多个数组的过滤
+	grep -q '\[servers.prod\]' /tmp/test_multi_arrays_$$.toml
+	grep -q 'host = "1.1.1.1"' /tmp/test_multi_arrays_$$.toml
+	! grep -q 'port = "8080"' /tmp/test_both_filters_$$.toml
+	grep -q '\[servers.dev\]' /tmp/test_multi_arrays_$$.toml
+	grep -q 'host = "2.2.2.2"' /tmp/test_multi_arrays_$$.toml
+	! grep -q 'port = "8081"' /tmp/test_both_filters_$$.toml
+
+	grep -q '\[clients.client1\]' /tmp/test_multi_arrays_$$.toml
+	grep -q 'name = "Alice"' /tmp/test_multi_arrays_$$.toml
+	grep -q '\[clients.client2\]' /tmp/test_multi_arrays_$$.toml
+	grep -q 'name = "Bob"' /tmp/test_multi_arrays_$$.toml
+	grep -q '\[clients.client3\]' /tmp/test_multi_arrays_$$.toml
+	grep -q 'name = "Charlie"' /tmp/test_multi_arrays_$$.toml
+}
+
+@test "config.save: filter_keys - empty filter array" {
+	config.register "key1" "value1" "string"
+	config.register "key2" "value2" "string"
+
+	local -a empty_filter=()
+	config.save /tmp/test_empty_filter_$$.toml empty_filter
+
+	# 空过滤数组应该过滤掉所有键
+	! grep -q 'key1 = "value1"' /tmp/test_empty_filter_$$.toml
+	! grep -q 'key2 = "value2"' /tmp/test_empty_filter_$$.toml
+}
+
+@test "config.save: filter_arrays - empty filter array" {
+	config.array.register "servers" "host" "" "string"
+	config.array.set "servers" "prod" "host" "1.1.1.1"
+	config.array.set "servers" "dev" "host" "2.2.2.2"
+
+	local -A empty_filter=()
+	config.save /tmp/test_empty_array_filter_$$.toml "" empty_filter
+
+	# 空关联数组应该过滤掉所有数组项
+	! grep -q '\[servers.prod\]' /tmp/test_empty_array_filter_$$.toml
+	! grep -q 'host = "1.1.1.1"' /tmp/test_empty_array_filter_$$.toml
+	! grep -q '\[servers.dev\]' /tmp/test_empty_array_filter_$$.toml
+	! grep -q 'host = "2.2.2.2"' /tmp/test_empty_array_filter_$$.toml
+}
+
+@test "config.save: filter_arrays - skip array field definitions" {
+	config.array.register "servers" "host" "" "string"
+	config.array.register "servers" "port" "" "string"
+	config.array.set "servers" "prod" "host" "1.1.1.1"
+	config.array.set "servers" "prod" "port" "8080"
+
+	local -A filter_arrays=([servers]="host")
+	config.save /tmp/test_skip_array_fields_$$.toml "" filter_arrays
+
+	# 数组配置项不应该出现在输出中
+	! grep -q '\[servers\]' /tmp/test_skip_array_fields_$$.toml
+	grep -q '\[servers.prod\]' /tmp/test_skip_array_fields_$$.toml
+	! grep -q 'port = "8080"' /tmp/test_both_filters_$$.toml
+}
+
+@test "config.save: filter_keys - reload filtered config" {
+	config.register "global.name" "myapp" "string"
+	config.register "global.version" "1.0.0" "string"
+	config.register "database.host" "localhost" "string"
+	config.register "database.port" "3306" "string"
+
+	local -a filter_keys=("global.name" "database.host")
+	config.save /tmp/test_filter_reload_$$.toml filter_keys
+
+	# 重置配置状态
+	_CONFIG_VALUES=()
+	_CONFIG_REGISTERED=()
+
+	# 重新注册相同的键
+	config.register "global.name" "" "string"
+	config.register "global.version" "" "string"
+	config.register "database.host" "" "string"
+	config.register "database.port" "" "string"
+
+	# 加载过滤后的配置
+	config.load /tmp/test_filter_reload_$$.toml
+
+	# 验证过滤后的配置可以正确加载
+	[ "$(config.get global.name)" = "myapp" ]
+	[ "$(config.get database.host)" = "localhost" ]
+	# 未保存的键应该保持默认值（空）
+	[ -z "$(config.get global.version 2>/dev/null || true)" ]
+	[ -z "$(config.get database.port 2>/dev/null || true)" ]
 }
