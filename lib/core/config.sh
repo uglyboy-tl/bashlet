@@ -2,7 +2,7 @@
 
 import std/array
 import std/map
-import std/file
+import std/fs
 import core/path
 import core/log
 
@@ -150,5 +150,5 @@ config.save() {
 		_o+=("$_field = \"$_v\"")
 	done
 
-	file.write "$_f" "${_o[@]}"
+	fs.write "$_f" "${_o[@]}"
 }

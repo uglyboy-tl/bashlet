@@ -1,98 +1,70 @@
 #!/usr/bin/env bash
-
-set -e
+#
+# config 模块使用示例
+# 通过代码展示配置注册、加载、数组配置和保存功能
+#
 
 PROJECT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 source "$PROJECT_ROOT/lib/std/import.sh"
 
 import core/config
-import core/log
 
-log.setLevel DEBUG
+main() {
+    # 清理临时文件
+    rm -f config-example.toml config-saved.toml 2>/dev/null || true
 
-echo "=== 示例 1: 基本使用 ==="
+    # 1. 注册配置项
+    config.register "app.name" "myapp" "string" "应用名称"
+    config.register "app.version" "1.0.0" "string" "应用版本"
 
-config.register "download_dir" "string" "/tmp/downloads" "下载目录"
-config.register "proxy_prefix" "string" "" "代理服务器前缀"
-config.register "log_level" "string" "info" "日志级别"
-config.register "api_token" "string" "" "API 访问令牌"
+    # 注册数组配置字段
+    config.array.register "servers" "host" "" "string" "服务器地址"
+    config.array.register "servers" "port" "22" "string" "SSH端口"
 
-echo "已注册的配置项:"
-config.keys
-
-cat > /tmp/example_config.toml << 'EOF'
-download_dir = "/home/user/Downloads"
-proxy_prefix = "https://proxy.example.com/"
-log_level = "debug"
-api_token = "secret_token_12345"
-EOF
-
-echo ""
-echo "加载配置文件..."
-config.load /tmp/example_config.toml
-
-echo ""
-config.debug
-
-echo ""
-echo "获取配置值:"
-echo "  下载目录: $(config.get download_dir)"
-echo "  代理前缀: $(config.get proxy_prefix)"
-echo "  日志级别: $(config.get log_level)"
-
-echo ""
-echo "验证配置..."
-if config.verify; then
-	echo "  验证通过"
-else
-	echo "  验证失败"
-fi
-
-echo ""
-echo "=== 示例 2: 默认值 ==="
-
-config.reset
-
-config.register "timeout" "int" "30"
-config.register "retries" "int" "3"
-
-config.load /dev/null 2>/dev/null || true
-
-echo "使用默认值:"
-echo "  超时时间: $(config.get timeout)"
-echo "  重试次数: $(config.get retries)"
-
-echo ""
-echo "运行时设置新值:"
-config.set timeout 60
-echo "  新的超时时间: $(config.get timeout)"
-
-echo ""
-echo "=== 示例 3: 白名单过滤 ==="
-
-config.reset
-
-config.register "name" "string" ""
-config.register "version" "string" "1.0.0"
-
-cat > /tmp/partial_config.toml << 'EOF'
-name = "myapp"
+    # 2. 创建并加载配置文件
+    cat > config-example.toml << 'EOF'
+[app]
+name = "示例应用"
 version = "2.0.0"
-ignored_key = "this will be ignored"
-another_unused = "also ignored"
+
+[servers.web]
+host = "192.168.1.100"
+port = "80"
+
+[servers.db]
+host = "192.168.1.101"
+port = "3306"
 EOF
 
-config.load /tmp/partial_config.toml
+    config.load config-example.toml
 
-echo "加载后:"
-config.debug
+    # 3. 使用配置 - 获取应用信息
+    app_name=$(config.get app.name)
+    app_version=$(config.get app.version)
 
-echo ""
-echo "检查忽略的键是否存在:"
-config.has name && echo "  name: 存在"
-config.has ignored_key && echo "  ignored_key: 存在" || echo "  ignored_key: 不存在"
+    # 4. 使用配置 - 处理服务器列表
+    server_items=$(config.array.items servers)
+    for server in $server_items; do
+        host=$(config.array.get servers "$server" host)
+        port=$(config.array.get servers "$server" port)
+        # 在实际应用中，这里会使用这些配置进行连接等操作
+    done
 
-rm -f /tmp/example_config.toml /tmp/partial_config.toml
+    # 5. 修改配置
+    config.set app.version "2.1.0"
 
-echo ""
-echo "=== 示例结束 ==="
+    # 添加新服务器
+    config.array.set servers "cache" "host" "192.168.1.102"
+    config.array.set servers "cache" "port" "6379"
+
+    # 6. 保存配置（使用过滤）
+    filter_keys=("app.name" "app.version")
+    declare -A filter_arrays=([servers]="host port")
+
+    config.save config-saved.toml filter_keys filter_arrays
+
+    # 7. 清理
+    rm -f config-example.toml config-saved.toml 2>/dev/null || true
+}
+
+main "$@"

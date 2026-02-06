@@ -12,12 +12,12 @@ BATS_EXEC="$BATS_DIR/bin/bats"
 source "$PROJECT_ROOT/lib/std/import.sh"
 
 import core/args
-import std/file
+import std/fs
 
 
 # 检查Bats是否可用
 check_bats() {
-	files.file.exists "$BATS_EXEC" && return 0
+	fs.file.exists "$BATS_EXEC" && return 0
 	log.error "Bats测试框架未找到: $BATS_EXEC"
 	log.info "请确保Bats已正确安装在 test/bats/ 目录"
 	exit 1
