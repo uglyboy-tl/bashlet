@@ -138,15 +138,62 @@ teardown() {
 }
 
 @test "fs.write - 函数命名一致性验证" {
-	# 验证所有函数都以 files. 开头
-	local file_content=$(cat "lib/std/file.sh")
+	# 验证所有函数都以 fs. 开头
+	local file_content=$(cat "lib/std/fs.sh")
 
 	# 提取所有函数定义
 	local functions=$(echo "$file_content" | grep -E '^[a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*\(\)')
 
-	# 验证每个函数都以 files. 开头
+	# 验证每个函数都以 fs. 开头
 	for func in $functions; do
 		func_name=$(echo "$func" | cut -d'(' -f1)
-		[[ "$func_name" == files.* ]] || echo "函数 $func_name 不以 files. 开头"
+		[[ "$func_name" == fs.* ]] || echo "函数 $func_name 不以 fs. 开头"
 	done
+}
+
+# ============ fs.replace 测试 ============
+
+@test "fs.replace - 替换第一个匹配行" {
+  local test_file="/tmp/test_replace_$$.txt"
+  fs.write "$test_file" "line1: apple" "line2: banana" "line3: apple" "line4: cherry"
+
+  run fs.replace "$test_file" "^line.*apple$" "lineX: replaced"
+  [ "$status" -eq 0 ]
+
+  local content=$(cat "$test_file")
+  [ "$content" = $'lineX: replaced\nline2: banana\nline3: apple\nline4: cherry' ]
+
+  rm -f "$test_file"
+}
+
+@test "fs.replace - 正则表达式匹配" {
+  local test_file="/tmp/test_replace_regex_$$.txt"
+  fs.write "$test_file" "version: 1.0.0" "author: john" "version: 2.0.0"
+
+  run fs.replace "$test_file" "^version:.*$" "version: 3.0.0"
+  [ "$status" -eq 0 ]
+
+  local content=$(cat "$test_file")
+  [ "$content" = $'version: 3.0.0\nauthor: john\nversion: 2.0.0' ]
+
+  rm -f "$test_file"
+}
+
+@test "fs.replace - 文件不存在时返回失败" {
+  run fs.replace "/tmp/nonexistent_file_$$.txt" "pattern" "replacement"
+  [ "$status" -ne 0 ]
+}
+
+@test "fs.replace - 没有匹配行时不修改文件" {
+  local test_file="/tmp/test_replace_no_match_$$.txt"
+  fs.write "$test_file" "line1" "line2" "line3"
+  local original_content=$(cat "$test_file")
+
+  run fs.replace "$test_file" "^nonexistent$" "replacement"
+  [ "$status" -eq 0 ]
+
+  local new_content=$(cat "$test_file")
+  [ "$new_content" = "$original_content" ]
+
+  rm -f "$test_file"
 }
