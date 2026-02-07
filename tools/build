@@ -25,41 +25,33 @@ process_sub_file() {
         # 删除行尾空白
         line="${line%"${line##*[![:space:]]}"}"
 
-        # 如果不是空白行，则处理注释
-        if [[ -n "$line" ]]; then
-            # 只删除以空格或行首开始的 # 注释
-            # 这样可以保护 ${var#pattern} 和字符串中的 #
-            if [[ "$line" =~ ^[[:space:]]*# ]]; then
-                # 整行都是注释，跳过
-                continue
-            else
-                # 删除真正的行尾注释（# 前面有空格）
-                # 使用 sed: 匹配空格+#[任意内容] 到行尾
-                [[ "$line" == *" #"* ]] && line="${line%% #*}"
-                # 删除可能产生的行尾空白
-                line="${line%"${line##*[![:space:]]}"}"
-            fi
+        # 跳过空白行
+        [[ -z "$line" ]] && continue
 
-            # 如果处理后还有内容，则添加
-            if [[ -n "$line" ]]; then
-                content="${content}${line}"$'\n'
-            fi
+        # 跳过 shebang 行
+        [[ "$line" == "#!/"* ]] && continue
+
+        # 跳过 set 行（匹配 set +/-[选项] 格式）
+        [[ "$line" =~ ^set[[:space:]]+[+-] ]] && continue
+
+        # 跳过 import/source 语句
+        [[ "$line" =~ ^[[:space:]]*(import|source)[[:space:]] ]] && continue
+
+        # 处理注释
+        if [[ "$line" =~ ^[[:space:]]*# ]]; then
+            # 整行都是注释，跳过
+            continue
+        else
+            # 删除真正的行尾注释（# 前面有空格）
+            # 使用参数扩展: 匹配空格+#[任意内容] 到行尾
+            [[ "$line" == *" #"* ]] && line="${line%% #*}"
+            # 删除可能产生的行尾空白
+            line="${line%"${line##*[![:space:]]}"}"
         fi
+
+        # 如果处理后还有内容，则添加
+        [[ -n "$line" ]] && content="${content}${line}"$'\n'
     done < "$file"
-
-    # 移除顶部的 shebang（处理多行情况）
-    content="${content#\#!/usr/bin/env bash}"
-    content="${content#\#!/bin/bash}"
-
-    # 移除顶部的 set 行
-    content="${content#set -euo pipefall}"
-    content="${content#set -euo pipefail}"
-
-    # 移除后续的 set 行
-    content=$(echo "$content" | grep -Ev '^set -euo pipefail$')
-
-    # 把所有 import 语句删除
-    content=$(echo "$content" | sed -E '/^[[:space:]]*(import|source) .*/d')
 
     echo "$content"
 }
@@ -67,29 +59,42 @@ process_sub_file() {
 build() {
     log.info "开始构建..."
 
-    > "$OUTPUT_FILE"
+    # 打开输出文件一次（使用文件描述符3）
+    > "$OUTPUT_FILE"  # 先清空
+    exec 3>>"$OUTPUT_FILE"
 
-    {
-        echo '#!/usr/bin/env bash'
-        echo 'set -euo pipefail'
-    } >> "$OUTPUT_FILE"
-
-    [[ -z SCRIPT_NAME ]] && echo "SCRIPT_NAME=\"$SCRIPT_NAME\"" >> "$OUTPUT_FILE"
-    [[ -z VERSION ]] && echo "VERSION=\"$VERSION\"" >> "$OUTPUT_FILE"
+    # 写入文件头部
+    echo '#!/usr/bin/env bash' >&3
+    echo 'set -euo pipefail' >&3
+    [[ -n "$SCRIPT_NAME" ]] && echo "SCRIPT_NAME=\"$SCRIPT_NAME\"" >&3
+    [[ -n "$VERSION" ]] && echo "VERSION=\"$VERSION\"" >&3
 
     # 合并所有 lib 文件
-    local lib_files="lib/*/*.sh"
-    compgen -G "lib/*.sh" > /dev/null && lib_files="$lib_files lib/*.sh"
-    lib_files="$lib_files $MAIN_FILE"
-    for file in $lib_files; do
-        log.info "合并: $file"
-        process_sub_file "$PROJECT_ROOT/$file" >> "$OUTPUT_FILE"
+    local files=()
+    # 收集 lib/*/*.sh
+    for f in "$PROJECT_ROOT"/lib/*/*.sh; do [[ -f "$f" ]] && files+=("$f"); done
+    # 收集 lib/*.sh（如果存在）
+    for f in "$PROJECT_ROOT"/lib/*.sh; do [[ -f "$f" ]] && files+=("$f"); done
+    # 添加主文件
+    for f in $MAIN_FILE; do files+=("$PROJECT_ROOT/$f"); done
+
+    for file in "${files[@]}"; do
+        log.info "合并: ${file#$PROJECT_ROOT/}"
+        process_sub_file "$file" >&3
     done
 
+    exec 3>&-
+
     chmod +x "$OUTPUT_FILE"
-    local size
-    size=$(du -h "$OUTPUT_FILE" | cut -f1)
-    log.success "完成! 大小: $size"
+    # 获取文件大小（避免子进程）
+    local -i size bytes
+    bytes=$(stat -c%s "$OUTPUT_FILE" 2>/dev/null || stat -f%z "$OUTPUT_FILE" 2>/dev/null)
+    if (( bytes >= 1024 )); then
+        size=$((bytes / 1024))
+        log.success "完成! 大小: ${size}KB"
+    else
+        log.success "完成! 大小: ${bytes}B"
+    fi
     log.info "最终文件: $OUTPUT_FILE"
 }
 
