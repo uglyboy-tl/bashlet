@@ -38,6 +38,7 @@ config.array.register() {
 
 config.load() {
 	local _f="${1:-$(config.path)}" _in_arr=false _table=""
+	[[ -z "$_f" ]] && return 1
 
 	while IFS= read -r line || [[ -n "$line" ]]; do
 		[[ "$line" =~ ^[[:space:]]*$ ]] && continue
@@ -107,6 +108,26 @@ config.array.set() {
 config.type() { [[ -v "_CONFIG_TYPES[$1]" ]] && echo "${_CONFIG_TYPES[$1]}"; }
 
 config.desc() { [[ -v "_CONFIG_DESCS[$1]" ]] && echo "${_CONFIG_DESCS[$1]}"; }
+
+config.update() {
+	local _f _s _k _v _sec _sec_grep _pat _repl
+	(($# % 2 == 1)) && _f="${!#}" && set -- "${@:1:$#-1}" || _f="$(config.path)"
+	(($# == 2)) && { _v="$2" && [[ "$1" == *.* ]] && _s="${1%%.*}" _k="${1#*.}" || _s="" _k="$1" && config.set "$@" || return $?; }
+	(($# == 4)) && { _s="$1.$2" _k="$3" _v="$4" && config.array.set "$@" || return $?; }
+	[[ ! -f "$_f" ]] && config.save "$_f" && return 0
+
+	_sec="${_s:+[$_s]}"
+	_sec_grep="${_sec//[/\\[}"; _sec_grep="${_sec_grep//]/\\]}"; _sec_grep="${_sec_grep//./\\.}"
+	_pat="^${_k}[[:space:]]*=" _repl="${_k} = \"${_v}\""
+	fs.grep "$_f" "$_pat" && fs.replace "$_f" "$_pat" "$_repl" && return 0 # 直接根据值判断会出错，因为不同 section 中可能有重复的 key
+	fs.grep "$_f" "^${_sec_grep}$" && fs.insert "$_f" "^${_sec_grep}$" "$_repl" && return 0
+	{
+		echo ""
+		[[ -n "$_s" ]] && echo "$_sec"
+		echo "$_repl"
+	} >>"$_f"
+	return 0
+}
 
 config.save() {
 	local _f="${1:-$(config.path)}" _k _v _s _field _arr _current _last=""

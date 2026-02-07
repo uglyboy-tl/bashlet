@@ -765,3 +765,76 @@ teardown() {
 	[ -z "$(config.get global.version 2>/dev/null || true)" ]
 	[ -z "$(config.get database.port 2>/dev/null || true)" ]
 }
+
+# ========== config.update 和 config.array.update 测试 ==========
+
+@test "config.update: basic update existing key in file" {
+	config.register "name" "initial" "string"
+	echo 'name = "oldvalue"' > /tmp/test_update_$$.toml
+	config.update "name" "newvalue" /tmp/test_update_$$.toml
+	[ "${_CONFIG_VALUES[name]}" = "newvalue" ]
+	grep -q 'name = "newvalue"' /tmp/test_update_$$.toml
+	! grep -q 'name = "oldvalue"' /tmp/test_update_$$.toml
+}
+
+@test "config.update: add new key to section" {
+	config.register "database.host" "localhost" "string"
+	{
+		echo "[database]"
+		echo 'port = "3306"'
+	} > /tmp/test_update_$$.toml
+	config.update "database.host" "127.0.0.1" /tmp/test_update_$$.toml
+	grep -q 'host = "127.0.0.1"' /tmp/test_update_$$.toml
+	grep -q '\[database\]' /tmp/test_update_$$.toml
+}
+
+@test "config.update: create new section for new key" {
+	config.register "cache.enabled" "true" "bool"
+	echo '# Empty config' > /tmp/test_update_$$.toml
+	config.update "cache.enabled" "false" /tmp/test_update_$$.toml
+	grep -q '\[cache\]' /tmp/test_update_$$.toml
+	grep -q 'enabled = "false"' /tmp/test_update_$$.toml
+}
+
+@test "config.update: create file if not exists" {
+	config.register "name" "myapp" "string"
+	rm -f /tmp/test_update_new_$$.toml
+	config.update "name" "newapp" /tmp/test_update_new_$$.toml
+	[ -f /tmp/test_update_new_$$.toml ]
+	grep -q 'name = "newapp"' /tmp/test_update_new_$$.toml
+}
+
+@test "config.update: array update basic existing field" {
+	config.array.register "servers" "host" "" "string"
+	config.array.register "servers" "port" "" "string"
+	{
+		echo "[servers.prod]"
+		echo 'host = "old.host.com"'
+		echo 'port = "8080"'
+	} > /tmp/test_array_update_$$.toml
+	config.update "servers" "prod" "host" "new.host.com" /tmp/test_array_update_$$.toml
+	[ "${_CONFIG_VALUES[servers.prod.host]}" = "new.host.com" ]
+	grep -q 'host = "new.host.com"' /tmp/test_array_update_$$.toml
+	! grep -q 'host = "old.host.com"' /tmp/test_array_update_$$.toml
+}
+
+@test "config.update: array add new field to existing item" {
+	config.array.register "servers" "host" "" "string"
+	config.array.register "servers" "port" "" "string"
+	{
+		echo "[servers.prod]"
+		echo 'host = "1.1.1.1"'
+	} > /tmp/test_array_update_$$.toml
+	config.update "servers" "prod" "port" "8080" /tmp/test_array_update_$$.toml
+	grep -q 'port = "8080"' /tmp/test_array_update_$$.toml
+}
+
+@test "config.update: array save full file if section not exists" {
+	config.array.register "servers" "host" "" "string"
+	{
+		echo "# Other config"
+	} > /tmp/test_array_update_$$.toml
+	config.update "servers" "prod" "host" "1.1.1.1" /tmp/test_array_update_$$.toml
+	[ -f /tmp/test_array_update_$$.toml ]
+}
+
