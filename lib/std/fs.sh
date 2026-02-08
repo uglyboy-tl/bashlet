@@ -19,7 +19,7 @@ fs.replace() {
 
 fs.insert() { sed -i "/$2/a\\$3" "$1" 2>/dev/null; }
 
-fs.rmline() { if [[ -n "$4" ]]; then sed -i "${4},/$2/{/$2/d}" "$1" 2>/dev/null; else sed -i "/$2/d" "$1" 2>/dev/null; fi; }
+fs.rmline() { [[ -n "$4" ]] && sed -i "${4},/$2/{/$2/d}" "$1" 2>/dev/null || sed -i "/$2/d" "$1" 2>/dev/null; fi; }
 
 fs.cleanup() { ls -t ${1}* 2>/dev/null | tail -n +$((${2:-3} + 1)) | xargs -r rm -f; } # 保留最新的 n 个文件 (默认 3 个)
 

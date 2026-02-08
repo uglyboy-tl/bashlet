@@ -12,7 +12,7 @@ source "$PROJECT_ROOT/lib/std/import.sh"
 import core/log
 import core/args
 
-.env
+.env || true
 
 # 处理 lib 文件：移除 shebang、set、注释，并删除空白行
 process_sub_file() {

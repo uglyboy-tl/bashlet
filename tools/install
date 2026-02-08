@@ -12,3 +12,5 @@ mkdir -p "$LIB_DIR"
 cd "$PROJECT_ROOT"
 [[ ! -d lib/core ]] && ln -rs "$SUBMODULE_NAME/lib/core" lib/
 [[ ! -d lib/std ]] && ln -rs "$SUBMODULE_NAME/lib/std" lib/
+
+cp "$SUBMODULE_NAME/examples/main.sh" ./
