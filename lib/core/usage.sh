@@ -79,4 +79,4 @@ usage.show() {
 	return 0
 }
 
-usage.version() { console.stderr "${BRIGHT_CYAN}${_USAGE_SCRIPT_NAME}${NC} version ${BRIGHT_GREEN}${VERSION}${NC}"; }
+usage.version() { console.stderr "${BRIGHT_CYAN}${_USAGE_SCRIPT_NAME}${NC} version ${BRIGHT_GREEN}${VERSION:-null}${NC}"; }

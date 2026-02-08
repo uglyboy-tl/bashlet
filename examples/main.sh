@@ -6,11 +6,11 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 source "$PROJECT_ROOT/lib/std/import.sh"
 
+import std/init
 import core/args
 import core/config
 
 main() {
-    .env || true
     args.name "$SCRIPT_NAME"
     args.init
 

@@ -14,3 +14,4 @@ cd "$PROJECT_ROOT"
 [[ ! -d lib/std ]] && ln -rs "$SUBMODULE_NAME/lib/std" lib/
 
 cp "$SUBMODULE_NAME/examples/main.sh" ./
+touch ./config.toml

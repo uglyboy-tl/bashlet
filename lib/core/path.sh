@@ -7,7 +7,6 @@
 : ${XDG_CACHE_HOME:=$HOME/.cache}
 
 path.script_name() {
-	: ${SCRIPT_NAME:="Demo"}
 	echo "${SCRIPT_NAME,,}"
 }
 

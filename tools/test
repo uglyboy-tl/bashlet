@@ -11,9 +11,9 @@ BATS_EXEC="$BATS_DIR/bin/bats"
 
 source "$PROJECT_ROOT/lib/std/import.sh"
 
+import std/init
 import core/args
 import std/fs
-
 
 # 检查Bats是否可用
 check_bats() {
