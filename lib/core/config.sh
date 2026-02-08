@@ -119,7 +119,7 @@ config.update() {
 	_sec="${_s:+[$_s]}"
 	_sec_grep="$(fs.escape.regex ${_sec})"
 	_pat="^${_k}[[:space:]]*=" _repl="${_k} = \"${_v}\""
-	_n=$(fs.find "$_f" "^${_sec_grep}$") && fs.find "$_f" "$_pat" "$_n" 1>/dev/null && fs.replace "$_f" "$_pat" "$_repl" "$_n" && return 0 || true
+	[[ -n "$_sec" ]] && _n=$(fs.find "$_f" "^${_sec_grep}$") || _n="" && fs.find "$_f" "$_pat" "$_n" 1>/dev/null && fs.replace "$_f" "$_pat" "$_repl" "$_n" && return 0 || true
 	[[ -n "$_n" ]] && fs.insert "$_f" "^${_sec_grep}$" "$_repl" "0" && return 0 || true
 	{
 		echo ""

@@ -23,6 +23,6 @@ fs.rmline() { if [[ -n "$4" ]]; then sed -i "${4},/$2/{/$2/d}" "$1" 2>/dev/null;
 
 fs.cleanup() { ls -t ${1}* 2>/dev/null | tail -n +$((${2:-3} + 1)) | xargs -r rm -f; } # 保留最新的 n 个文件 (默认 3 个)
 
-fs.escape.regex() { printf '%s' "$1" | sed 's/[].[\\^$*+?{}()|]/\\&/g; s/\//\\\//g'; }
+fs.escape.regex() { printf '%s' "${1:-}" | sed 's/[].[\\^$*+?{}()|]/\\&/g; s/\//\\\//g'; }
 
-fs.escape.sed() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/&/\\&/g; s/|/\\|/g'; }
+fs.escape.sed() { printf '%s' "${1:-}" | sed 's/\\/\\\\/g; s/&/\\&/g; s/|/\\|/g'; }

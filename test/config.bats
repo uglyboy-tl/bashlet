@@ -766,7 +766,7 @@ teardown() {
 	[ -z "$(config.get database.port 2>/dev/null || true)" ]
 }
 
-# ========== config.update 和 config.array.update 测试 ==========
+# ========== config.update 测试 ==========
 
 @test "config.update: basic update existing key in file" {
 	config.register "name" "initial" "string"
