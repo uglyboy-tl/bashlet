@@ -6,8 +6,8 @@ bashlet 是一个 Bash 脚本开发框架，提供基础功能库。
 
 ```
 bashlet/
-├── src/core/       # 核心功能（args, log, path）
-├── src/std/        # 标准库（array, map, console, import）
+├── lib/core/       # 核心功能（args, log, path）
+├── lib/std/        # 标准库（array, map, console, import）
 └── test/           # Bats 测试
 ```
 

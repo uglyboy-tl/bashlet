@@ -79,7 +79,7 @@ args.process() {
 	[[ ! -n "$_ARGS_CURRENT_SUBCOMMAND" ]] && args.dispatch "$@" && exit 0
 	args.parse "$@"
 	args.verify || { args.show_help; exit 1; }
-	args.has "-h" "--help" && { args.show_help; exit 0; }
+	args.has "-h" "--help" && args.show_help && exit 0
 	return 0
 }
 

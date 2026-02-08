@@ -23,7 +23,7 @@ cd bashlet
 #!/usr/bin/env bash
 
 # 导入框架
-source "path/to/bashlet/src/std/import.sh"
+source "path/to/bashlet/lib/std/import.sh"
 import core/args
 import core/log
 

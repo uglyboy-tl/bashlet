@@ -194,7 +194,7 @@ EOF
 @test "import - 从src目录加载相对路径" {
 	cd "$PROJECT_ROOT"
 
-	# 使用import加载std/console.sh (相对于src/)
+	# 使用import加载std/console.sh (相对于lib/)
 	import "std/console.sh"
 	local count1="${#__loaded_modules[@]}"
 

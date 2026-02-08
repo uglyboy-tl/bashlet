@@ -594,7 +594,7 @@ setup_verify() {
 	cat > "$tmp_script" << 'SCRIPT'
 #!/usr/bin/env bash
 PROJECT_ROOT="/home/uglyboy/Code/bashlet"
-source "$PROJECT_ROOT/src/std/import.sh"
+source "$PROJECT_ROOT/lib/std/import.sh"
 import core/args
 args.init "测试脚本"
 args.add_options "file" "f" "输入文件" "FILE"
@@ -612,7 +612,7 @@ SCRIPT
 	cat > "$tmp_script" << 'SCRIPT'
 #!/usr/bin/env bash
 PROJECT_ROOT="/home/uglyboy/Code/bashlet"
-source "$PROJECT_ROOT/src/std/import.sh"
+source "$PROJECT_ROOT/lib/std/import.sh"
 import core/args
 args.init "测试脚本"
 args.add_options "file" "f" "输入文件" "FILE"
@@ -631,7 +631,7 @@ SCRIPT
 	cat > "$tmp_script" << 'SCRIPT'
 #!/usr/bin/env bash
 PROJECT_ROOT="/home/uglyboy/Code/bashlet"
-source "$PROJECT_ROOT/src/std/import.sh"
+source "$PROJECT_ROOT/lib/std/import.sh"
 import core/args
 args.init
 args.add_options "file" "f" "输入文件" "FILE"
