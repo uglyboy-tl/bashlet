@@ -153,11 +153,11 @@ teardown() {
 
 # ============ fs.replace 测试 ============
 
-@test "fs.replace - 替换第一个匹配行" {
+@test "fs.replace - 替换第一个匹配行（整行替换）" {
   local test_file="/tmp/test_replace_$$.txt"
   fs.write "$test_file" "line1: apple" "line2: banana" "line3: apple" "line4: cherry"
 
-  run fs.replace "$test_file" "^line.*apple$" "lineX: replaced"
+  run fs.replace "$test_file" "apple" "lineX: replaced" "0"
   [ "$status" -eq 0 ]
 
   local content=$(cat "$test_file")
@@ -166,11 +166,11 @@ teardown() {
   rm -f "$test_file"
 }
 
-@test "fs.replace - 正则表达式匹配" {
+@test "fs.replace - 正则表达式匹配（整行替换）" {
   local test_file="/tmp/test_replace_regex_$$.txt"
   fs.write "$test_file" "version: 1.0.0" "author: john" "version: 2.0.0"
 
-  run fs.replace "$test_file" "^version:.*$" "version: 3.0.0"
+  run fs.replace "$test_file" "version:.*" "version: 3.0.0" "0"
   [ "$status" -eq 0 ]
 
   local content=$(cat "$test_file")
@@ -196,4 +196,769 @@ teardown() {
   [ "$new_content" = "$original_content" ]
 
   rm -f "$test_file"
+}
+
+@test "fs.replace - 无第4个参数时全局替换整行" {
+  local test_file="/tmp/test_replace_global_$$.txt"
+  fs.write "$test_file" "apple pie" "banana bread" "apple juice"
+
+  run fs.replace "$test_file" "apple" "orange"
+  [ "$status" -eq 0 ]
+
+  local content=$(cat "$test_file")
+  [ "$content" = $'orange\nbanana bread\norange' ]
+
+  rm -f "$test_file"
+}
+
+@test "fs.replace - 从指定行号开始替换整行" {
+  local test_file="/tmp/test_replace_from_line_$$.txt"
+  fs.write "$test_file" "apple: first" "banana" "apple: second" "cherry"
+
+  # 从第2行开始，替换第一个匹配
+  run fs.replace "$test_file" "apple" "REPLACED_LINE" "2"
+  [ "$status" -eq 0 ]
+
+  local content=$(cat "$test_file")
+  [ "$content" = $'apple: first\nbanana\nREPLACED_LINE\ncherry' ]
+
+  rm -f "$test_file"
+}
+
+@test "fs.replace - 起始行号之后无匹配时不修改" {
+  local test_file="/tmp/test_replace_no_match_after_$$.txt"
+  fs.write "$test_file" "apple: first" "banana" "cherry" "apple: last"
+
+  # 从第4行开始查找，应该找不到匹配（因为第4行就是最后一个apple）
+  # 实际上第4行有"apple"，应该能找到
+  # 改为从第5行开始，超出文件范围
+  run fs.replace "$test_file" "apple" "orange" "5"
+  [ "$status" -eq 0 ]
+
+  local content=$(cat "$test_file")
+  # 应该没有变化，因为从第5行开始没有内容
+  [ "$content" = $'apple: first\nbanana\ncherry\napple: last' ]
+
+  rm -f "$test_file"
+}
+
+@test "fs.replace - 替换包含特殊字符的内容（整行替换）" {
+  local test_file="/tmp/test_replace_special_$$.txt"
+  fs.write "$test_file" "version=1.0.0" "path=/usr/local/bin" "version=2.0.0"
+
+  run fs.replace "$test_file" "version=.*" "version=3.0.0" "0"
+  [ "$status" -eq 0 ]
+
+  local content=$(cat "$test_file")
+  [ "$content" = $'version=3.0.0\npath=/usr/local/bin\nversion=2.0.0' ]
+
+  rm -f "$test_file"
+}
+
+@test "fs.replace - 替换整行内容" {
+  local test_file="/tmp/test_replace_whole_line_$$.txt"
+  fs.write "$test_file" "# old comment" "code line" "# another comment"
+
+  run fs.replace "$test_file" "old comment" "# new comment here" "0"
+  [ "$status" -eq 0 ]
+
+  local content=$(cat "$test_file")
+  [ "$content" = $'# new comment here\ncode line\n# another comment' ]
+
+  rm -f "$test_file"
+}
+
+@test "fs.replace - 从第0行开始等同于从文件开头" {
+  local test_file="/tmp/test_replace_zero_$$.txt"
+  fs.write "$test_file" "first" "second" "third"
+
+  # 显式指定从第0行开始
+  run fs.replace "$test_file" "second" "SECOND_LINE" "0"
+  [ "$status" -eq 0 ]
+
+  local content=$(cat "$test_file")
+  [ "$content" = $'first\nSECOND_LINE\nthird' ]
+
+  rm -f "$test_file"
+}
+
+@test "fs.replace - 空文件不报错" {
+  local test_file="/tmp/test_replace_empty_$$.txt"
+  fs.write "$test_file"
+
+  run fs.replace "$test_file" "pattern" "replacement" "0"
+  [ "$status" -eq 0 ]
+
+  # 文件仍为空
+  [ ! -s "$test_file" ]
+
+  rm -f "$test_file"
+}
+
+@test "fs.replace - 单行文件替换" {
+  local test_file="/tmp/test_replace_single_$$.txt"
+  fs.write "$test_file" "only line"
+
+  run fs.replace "$test_file" "only" "ONLY_LINE" "0"
+  [ "$status" -eq 0 ]
+
+  local content=$(cat "$test_file")
+  [ "$content" = "ONLY_LINE" ]
+
+  rm -f "$test_file"
+}
+
+@test "fs.replace - 替换内容包含管道符 |" {
+  local test_file="/tmp/test_replace_pipe_$$.txt"
+  fs.write "$test_file" "line1: apple" "line2: banana" "line3: apple"
+
+  # 测试替换内容包含 | 字符
+  run fs.replace "$test_file" "apple" "fruit|with|pipe" "0"
+  [ "$status" -eq 0 ]
+
+  local content=$(cat "$test_file")
+  [ "$content" = $'fruit|with|pipe\nline2: banana\nline3: apple' ]
+
+  rm -f "$test_file"
+}
+
+@test "fs.replace - 替换内容包含多个管道符" {
+  local test_file="/tmp/test_replace_multi_pipe_$$.txt"
+  fs.write "$test_file" "config: old_value" "other: line"
+
+  # 测试替换内容包含多个 | 字符
+  run fs.replace "$test_file" "old_value" "a|b|c|d|e" "0"
+  [ "$status" -eq 0 ]
+
+  local content=$(cat "$test_file")
+  [ "$content" = $'a|b|c|d|e\nother: line' ]
+
+  rm -f "$test_file"
+}
+
+@test "fs.replace - 全局替换时处理管道符" {
+  local test_file="/tmp/test_replace_global_pipe_$$.txt"
+  fs.write "$test_file" "item: apple" "item: banana" "item: apple"
+
+  # 无第4个参数，全局替换，替换内容包含 |
+  run fs.replace "$test_file" "apple" "fruit|type|A"
+  [ "$status" -eq 0 ]
+
+  local content=$(cat "$test_file")
+  [ "$content" = $'fruit|type|A\nitem: banana\nfruit|type|A' ]
+
+  rm -f "$test_file"
+}
+
+@test "fs.replace - 从指定行号开始替换时处理管道符" {
+  local test_file="/tmp/test_replace_from_line_pipe_$$.txt"
+  fs.write "$test_file" "line1: apple" "line2: banana" "line3: apple" "line4: cherry"
+
+  # 从第2行开始替换，替换内容包含 |
+  run fs.replace "$test_file" "apple" "fruit|with|pipe" "2"
+  [ "$status" -eq 0 ]
+
+  local content=$(cat "$test_file")
+  [ "$content" = $'line1: apple\nline2: banana\nfruit|with|pipe\nline4: cherry' ]
+
+  rm -f "$test_file"
+}
+
+@test "fs.replace - 替换内容以管道符开头或结尾" {
+  local test_file="/tmp/test_replace_edge_pipe_$$.txt"
+  fs.write "$test_file" "value: old"
+
+  # 测试替换内容以 | 开头或结尾
+  run fs.replace "$test_file" "old" "|start|middle|end|" "0"
+  [ "$status" -eq 0 ]
+
+  local content=$(cat "$test_file")
+  [ "$content" = "|start|middle|end|" ]
+
+  rm -f "$test_file"
+}
+
+@test "fs.replace - 替换内容包含转义字符和管道符" {
+  local test_file="/tmp/test_replace_escape_pipe_$$.txt"
+  fs.write "$test_file" "path: /old/path"
+
+  # 测试替换内容包含 \ 和 | 的混合
+  run fs.replace "$test_file" "\/old\/path" "/usr/local/bin|/opt/bin|C:\\Program Files" "0"
+  [ "$status" -eq 0 ]
+
+  local content=$(cat "$test_file")
+  [ "$content" = "/usr/local/bin|/opt/bin|C:\\Program Files" ]
+
+	rm -f "$test_file"
+}
+
+# ============ fs.escape.sed 测试 ============
+
+@test "fs.escape.sed - 普通字符串保持不变" {
+	run fs.escape.sed "hello world"
+	[ "$status" -eq 0 ]
+	[ "$output" = "hello world" ]
+}
+
+@test "fs.escape.sed - 转义 & 字符" {
+	run fs.escape.sed "foo&bar"
+	[ "$status" -eq 0 ]
+	[ "$output" = "foo\&bar" ]
+}
+
+@test "fs.escape.sed - 转义 | 字符" {
+	run fs.escape.sed "a|b|c"
+	[ "$status" -eq 0 ]
+	[ "$output" = "a\|b\|c" ]
+}
+
+@test "fs.escape.sed - 转义反斜杠" {
+	run fs.escape.sed "C:\\Windows"
+	[ "$status" -eq 0 ]
+	[ "$output" = "C:\\\\Windows" ]
+}
+
+@test "fs.escape.sed - 混合特殊字符" {
+	run fs.escape.sed "C:\\Windows&a|b"
+	[ "$status" -eq 0 ]
+	[ "$output" = "C:\\\\Windows\&a\|b" ]
+}
+
+@test "fs.escape.sed - 空字符串返回空" {
+	run fs.escape.sed ""
+	[ "$status" -eq 0 ]
+	[ "$output" = "" ]
+}
+
+@test "fs.escape.sed - 用于 fs.replace 处理 & 字符" {
+	local test_file="/tmp/test_sed_escape_repl_$$.txt"
+	fs.write "$test_file" "config: old_value"
+
+	# 使用 fs.replace 替换内容包含 & (整行替换)
+	run fs.replace "$test_file" "old_value" "user&password" "0"
+	[ "$status" -eq 0 ]
+
+	local content=$(cat "$test_file")
+	[ "$content" = "user&password" ]
+
+	rm -f "$test_file"
+}
+
+@test "fs.escape.sed - 用于 fs.replace 处理混合特殊字符" {
+	local test_file="/tmp/test_sed_escape_repl_mixed_$$.txt"
+	fs.write "$test_file" "path: /usr/local/bin"
+
+	# 替换内容包含 \ & | (整行替换)
+	run fs.replace "$test_file" "$(fs.escape.regex "/usr/local/bin")" "C:\\Program Files&Tools|C:\\opt" "0"
+	[ "$status" -eq 0 ]
+
+	local content=$(cat "$test_file")
+	[ "$content" = $'C:\\Program Files&Tools|C:\\opt' ]
+
+	rm -f "$test_file"
+}
+
+# ============ fs.find 测试 ============
+
+@test "fs.find - 查找存在的模式返回行号" {
+  local test_file="/tmp/test_find_$$.txt"
+  fs.write "$test_file" "apple pie" "banana bread" "cherry tart"
+
+  run fs.find "$test_file" "banana"
+  [ "$status" -eq 0 ]
+  [ "$output" = "2" ]
+
+  rm -f "$test_file"
+}
+
+@test "fs.find - 查找第一行" {
+  local test_file="/tmp/test_find_first_$$.txt"
+  fs.write "$test_file" "first line" "second line" "third line"
+
+  run fs.find "$test_file" "first"
+  [ "$status" -eq 0 ]
+  [ "$output" = "1" ]
+
+  rm -f "$test_file"
+}
+
+@test "fs.find - 查找最后一行" {
+  local test_file="/tmp/test_find_last_$$.txt"
+  fs.write "$test_file" "line1" "line2" "target line"
+
+  run fs.find "$test_file" "target"
+  [ "$status" -eq 0 ]
+  [ "$output" = "3" ]
+
+  rm -f "$test_file"
+}
+
+@test "fs.find - 模式不存在时返回失败" {
+  local test_file="/tmp/test_find_notfound_$$.txt"
+  fs.write "$test_file" "apple" "banana" "cherry"
+
+  run fs.find "$test_file" "grape"
+  [ "$status" -ne 0 ]
+
+  rm -f "$test_file"
+}
+
+@test "fs.find - 文件不存在时返回失败" {
+  run fs.find "/tmp/nonexistent_file_$$.txt" "pattern"
+  [ "$status" -ne 0 ]
+}
+
+@test "fs.find - 使用正则表达式查找" {
+  local test_file="/tmp/test_find_regex_$$.txt"
+  fs.write "$test_file" "version: 1.0.0" "author: john" "version: 2.0.0"
+
+  run fs.find "$test_file" "^version:"
+  [ "$status" -eq 0 ]
+  [ "$output" = "1" ]
+
+  rm -f "$test_file"
+}
+
+@test "fs.find - 空文件返回失败" {
+  local test_file="/tmp/test_find_empty_$$.txt"
+  fs.write "$test_file"
+
+  run fs.find "$test_file" "pattern"
+  [ "$status" -ne 0 ]
+
+  rm -f "$test_file"
+}
+
+@test "fs.find - 多个匹配返回第一个" {
+  local test_file="/tmp/test_find_multi_$$.txt"
+  fs.write "$test_file" "apple first" "banana" "apple second"
+
+  run fs.find "$test_file" "apple"
+  [ "$status" -eq 0 ]
+  [ "$output" = "1" ]
+
+  rm -f "$test_file"
+}
+
+@test "fs.find - 从指定行号开始查找" {
+  local test_file="/tmp/test_find_from_$$.txt"
+  fs.write "$test_file" "apple first" "banana" "apple second"
+
+  run fs.find "$test_file" "apple" "2"
+  [ "$status" -eq 0 ]
+  [ "$output" = "3" ]
+
+  rm -f "$test_file"
+}
+
+@test "fs.find - 从第1行开始等同于从文件开头" {
+  local test_file="/tmp/test_find_from1_$$.txt"
+  fs.write "$test_file" "apple" "banana" "cherry"
+
+  run fs.find "$test_file" "banana" "1"
+  [ "$status" -eq 0 ]
+  [ "$output" = "2" ]
+
+  rm -f "$test_file"
+}
+
+@test "fs.find - 起始行号之后无匹配时返回失败" {
+  local test_file="/tmp/test_find_from_nomatch_$$.txt"
+  fs.write "$test_file" "apple" "banana" "cherry"
+
+  run fs.find "$test_file" "apple" "2"
+  [ "$status" -ne 0 ]
+
+  rm -f "$test_file"
+}
+
+# ============ fs.insert 测试 ============
+
+@test "fs.insert - 在匹配行后插入新行" {
+  local test_file="/tmp/test_insert_$$.txt"
+  fs.write "$test_file" "line1" "line2" "line3"
+
+  run fs.insert "$test_file" "line2" "inserted line"
+  [ "$status" -eq 0 ]
+
+  local content=$(cat "$test_file")
+  [ "$content" = $'line1\nline2\ninserted line\nline3' ]
+
+  rm -f "$test_file"
+}
+
+@test "fs.insert - 使用正则表达式匹配" {
+  local test_file="/tmp/test_insert_regex_$$.txt"
+  fs.write "$test_file" "# comment" "code line" "# another comment"
+
+  run fs.insert "$test_file" "^# comment$" "# new comment"
+  [ "$status" -eq 0 ]
+
+  local content=$(cat "$test_file")
+  [ "$content" = $'# comment\n# new comment\ncode line\n# another comment' ]
+
+  rm -f "$test_file"
+}
+
+@test "fs.insert - 在多个匹配行后都插入" {
+  local test_file="/tmp/test_insert_multi_$$.txt"
+  fs.write "$test_file" "item: apple" "item: banana" "item: cherry"
+
+  run fs.insert "$test_file" "item:" "-- separator --"
+  [ "$status" -eq 0 ]
+
+  local content=$(cat "$test_file")
+  [ "$content" = $'item: apple\n-- separator --\nitem: banana\n-- separator --\nitem: cherry\n-- separator --' ]
+
+  rm -f "$test_file"
+}
+
+@test "fs.insert - 模式不存在时不修改文件" {
+  local test_file="/tmp/test_insert_nomatch_$$.txt"
+  fs.write "$test_file" "line1" "line2" "line3"
+  local original_content=$(cat "$test_file")
+
+  run fs.insert "$test_file" "nonexistent" "new line"
+  [ "$status" -eq 0 ]
+
+  local content=$(cat "$test_file")
+  [ "$content" = "$original_content" ]
+
+  rm -f "$test_file"
+}
+
+@test "fs.insert - 插入包含特殊字符的内容" {
+  local test_file="/tmp/test_insert_special_$$.txt"
+  fs.write "$test_file" "start" "end"
+
+  run fs.insert "$test_file" "start" "line with special chars"
+  [ "$status" -eq 0 ]
+
+  local content=$(cat "$test_file")
+  [ "$content" = $'start\nline with special chars\nend' ]
+
+  rm -f "$test_file"
+}
+
+@test "fs.insert - 在文件开头插入" {
+  local test_file="/tmp/test_insert_first_$$.txt"
+  fs.write "$test_file" "first line" "second line"
+
+  run fs.insert "$test_file" "first line" "header line"
+  [ "$status" -eq 0 ]
+
+  local content=$(cat "$test_file")
+  [ "$content" = $'first line\nheader line\nsecond line' ]
+
+  rm -f "$test_file"
+}
+
+@test "fs.insert - 在文件末尾插入" {
+  local test_file="/tmp/test_insert_last_$$.txt"
+  fs.write "$test_file" "line1" "line2"
+
+  run fs.insert "$test_file" "line2" "last line"
+  [ "$status" -eq 0 ]
+
+  local content=$(cat "$test_file")
+  [ "$content" = $'line1\nline2\nlast line' ]
+
+  rm -f "$test_file"
+}
+
+# ============ fs.rmline 测试 ============
+
+@test "fs.rmline - 删除所有匹配行（无第4参数）" {
+  local test_file="/tmp/test_rmline_all_$$.txt"
+  fs.write "$test_file" "apple pie" "banana bread" "apple juice"
+
+  run fs.rmline "$test_file" "apple"
+  [ "$status" -eq 0 ]
+
+  local content=$(cat "$test_file")
+  [ "$content" = "banana bread" ]
+
+  rm -f "$test_file"
+}
+
+@test "fs.rmline - 从指定行号开始删除第一个匹配" {
+  local test_file="/tmp/test_rmline_from_$$.txt"
+  fs.write "$test_file" "apple first" "banana" "apple second" "cherry"
+
+  run fs.rmline "$test_file" "apple" "" "2"
+  [ "$status" -eq 0 ]
+
+  local content=$(cat "$test_file")
+  [ "$content" = $'apple first\nbanana\ncherry' ]
+
+  rm -f "$test_file"
+}
+
+@test "fs.rmline - 模式不存在时不修改文件" {
+  local test_file="/tmp/test_rmline_nomatch_$$.txt"
+  fs.write "$test_file" "line1" "line2" "line3"
+  local original_content=$(cat "$test_file")
+
+  run fs.rmline "$test_file" "nonexistent"
+  [ "$status" -eq 0 ]
+
+  local content=$(cat "$test_file")
+  [ "$content" = "$original_content" ]
+
+  rm -f "$test_file"
+}
+
+@test "fs.rmline - 使用正则表达式删除" {
+  local test_file="/tmp/test_rmline_regex_$$.txt"
+  fs.write "$test_file" "# comment 1" "code line" "# comment 2" "another code"
+
+  run fs.rmline "$test_file" "^#"
+  [ "$status" -eq 0 ]
+
+  local content=$(cat "$test_file")
+  [ "$content" = $'code line\nanother code' ]
+
+  rm -f "$test_file"
+}
+
+@test "fs.rmline - 删除单行文件" {
+  local test_file="/tmp/test_rmline_single_$$.txt"
+  fs.write "$test_file" "only line"
+
+  run fs.rmline "$test_file" "only"
+  [ "$status" -eq 0 ]
+
+  local content=$(cat "$test_file")
+  [ -z "$content" ]
+
+  rm -f "$test_file"
+}
+
+@test "fs.rmline - 起始行号之后无匹配时不修改" {
+  local test_file="/tmp/test_rmline_no_match_after_$$.txt"
+  fs.write "$test_file" "apple first" "banana" "apple second"
+  local original_content=$(cat "$test_file")
+
+  # 从第3行开始查找 "apple"，应该能找到第3行的 "apple second"
+  # 但让我们测试从第4行开始（超出范围）
+  run fs.rmline "$test_file" "apple" "" "4"
+  [ "$status" -eq 0 ]
+
+  local content=$(cat "$test_file")
+  # 应该没有变化
+  [ "$content" = "$original_content" ]
+
+  rm -f "$test_file"
+}
+
+@test "fs.rmline - 删除空行" {
+  local test_file="/tmp/test_rmline_empty_$$.txt"
+  fs.write "$test_file" "line1" "" "line3"
+
+  run fs.rmline "$test_file" "^$"
+  [ "$status" -eq 0 ]
+
+  local content=$(cat "$test_file")
+  [ "$content" = $'line1\nline3' ]
+
+  rm -f "$test_file"
+}
+
+# ============ fs.cleanup 测试 ============
+
+@test "fs.cleanup - 保留指定数量的文件" {
+  # 创建测试文件
+  rm -f /tmp/cleanup-test-*.bak 2>/dev/null
+  for i in 1 2 3 4 5; do
+    touch "/tmp/cleanup-test-${i}.bak"
+    sleep 0.05
+  done
+
+  run fs.cleanup "/tmp/cleanup-test" 2
+  [ "$status" -eq 0 ]
+
+  # 应该保留最新的2个文件（4.bak 和 5.bak）
+  local count=$(ls /tmp/cleanup-test-*.bak 2>/dev/null | wc -l)
+  [ "$count" -eq 2 ]
+
+  # 验证保留的是最新的文件
+  [ -f "/tmp/cleanup-test-4.bak" ]
+  [ -f "/tmp/cleanup-test-5.bak" ]
+
+  # 验证旧文件已被删除
+  [ ! -f "/tmp/cleanup-test-1.bak" ]
+  [ ! -f "/tmp/cleanup-test-2.bak" ]
+  [ ! -f "/tmp/cleanup-test-3.bak" ]
+
+  rm -f /tmp/cleanup-test-*.bak 2>/dev/null
+}
+
+@test "fs.cleanup - 默认保留3个文件" {
+  # 创建测试文件
+  rm -f /tmp/cleanup-default-*.bak 2>/dev/null
+  for i in 1 2 3 4 5 6 7; do
+    touch "/tmp/cleanup-default-${i}.bak"
+    sleep 0.05
+  done
+
+  # 不传第二个参数，使用默认值3
+  run fs.cleanup "/tmp/cleanup-default"
+  [ "$status" -eq 0 ]
+
+  # 应该保留最新的3个文件（5.bak, 6.bak, 7.bak）
+  local count=$(ls /tmp/cleanup-default-*.bak 2>/dev/null | wc -l)
+  [ "$count" -eq 3 ]
+
+  # 验证保留的是最新的文件
+  [ -f "/tmp/cleanup-default-5.bak" ]
+  [ -f "/tmp/cleanup-default-6.bak" ]
+  [ -f "/tmp/cleanup-default-7.bak" ]
+
+  # 验证旧文件已被删除
+  [ ! -f "/tmp/cleanup-default-1.bak" ]
+  [ ! -f "/tmp/cleanup-default-2.bak" ]
+  [ ! -f "/tmp/cleanup-default-3.bak" ]
+  [ ! -f "/tmp/cleanup-default-4.bak" ]
+
+  rm -f /tmp/cleanup-default-*.bak 2>/dev/null
+}
+
+@test "fs.cleanup - 文件不存在时不报错" {
+  run fs.cleanup "/tmp/nonexistent-pattern-$$"
+  [ "$status" -eq 0 ]
+}
+
+@test "fs.cleanup - 文件数量少于保留数量时不删除" {
+	# 创建2个文件，要求保留3个
+	rm -f /tmp/cleanup-few-*.bak 2>/dev/null
+	touch "/tmp/cleanup-few-1.bak"
+	sleep 0.05
+	touch "/tmp/cleanup-few-2.bak"
+
+	run fs.cleanup "/tmp/cleanup-few" 3
+	[ "$status" -eq 0 ]
+
+	# 所有文件应该都保留
+	local count=$(ls /tmp/cleanup-few-*.bak 2>/dev/null | wc -l)
+	[ "$count" -eq 2 ]
+
+	rm -f /tmp/cleanup-few-*.bak 2>/dev/null
+}
+
+# ============ fs.escape.regex 测试 ============
+
+@test "fs.escape.regex - 转义方括号" {
+	run fs.escape.regex "[test]"
+	[ "$status" -eq 0 ]
+	[ "$output" = "\[test\]" ]
+}
+
+@test "fs.escape.regex - 转义斜杠" {
+	run fs.escape.regex "/usr/local/bin"
+	[ "$status" -eq 0 ]
+	[ "$output" = "\/usr\/local\/bin" ]
+}
+
+@test "fs.escape.regex - 转义点号" {
+	run fs.escape.regex "file.txt"
+	[ "$status" -eq 0 ]
+	[ "$output" = "file\.txt" ]
+}
+
+@test "fs.escape.regex - 转义星号" {
+	run fs.escape.regex "*.*"
+	[ "$status" -eq 0 ]
+	[ "$output" = "\*\.\*" ]
+}
+
+@test "fs.escape.regex - 转义问号" {
+	run fs.escape.regex "?"
+	[ "$status" -eq 0 ]
+	[ "$output" = "\?" ]
+}
+
+@test "fs.escape.regex - 转义加号" {
+	run fs.escape.regex "a+b"
+	[ "$status" -eq 0 ]
+	[ "$output" = "a\+b" ]
+}
+
+@test "fs.escape.regex - 转义圆括号" {
+	run fs.escape.regex "(group)"
+	[ "$status" -eq 0 ]
+	[ "$output" = "\(group\)" ]
+}
+
+@test "fs.escape.regex - 转义花括号" {
+	run fs.escape.regex "{1,3}"
+	[ "$status" -eq 0 ]
+	[ "$output" = "\{1,3\}" ]
+}
+
+@test "fs.escape.regex - 转义脱字符" {
+	run fs.escape.regex "^start"
+	[ "$status" -eq 0 ]
+	[ "$output" = "\^start" ]
+}
+
+@test "fs.escape.regex - 转义美元符" {
+	run fs.escape.regex "end$"
+	[ "$status" -eq 0 ]
+	[ "$output" = "end\\$" ]
+}
+
+@test "fs.escape.regex - 转义管道符" {
+	run fs.escape.regex "a|b"
+	[ "$status" -eq 0 ]
+	[ "$output" = "a\|b" ]
+}
+
+@test "fs.escape.regex - 转义反斜杠" {
+	run fs.escape.regex "\\n"
+	[ "$status" -eq 0 ]
+	[ "$output" = "\\\\n" ]
+}
+
+@test "fs.escape.regex - 普通字符串不变" {
+	run fs.escape.regex "hello world"
+	[ "$status" -eq 0 ]
+	[ "$output" = "hello world" ]
+}
+
+@test "fs.escape.regex - 空字符串返回空" {
+	run fs.escape.regex ""
+	[ "$status" -eq 0 ]
+	[ "$output" = "" ]
+}
+
+@test "fs.escape.regex - 混合特殊字符" {
+	run fs.escape.regex "[a-z]+.*"
+	[ "$status" -eq 0 ]
+	[ "$output" = "\[a-z\]\+\.\*" ]
+}
+
+@test "fs.escape.regex - 用于 fs.find 匹配" {
+	local test_file="/tmp/test_regex_escape_$$.txt"
+	fs.write "$test_file" "item[0] = value" "item[1] = other"
+
+	local escaped=$(fs.escape.regex "item[0]")
+	run fs.find "$test_file" "$escaped"
+	[ "$status" -eq 0 ]
+	[ "$output" = "1" ]
+
+	rm -f "$test_file"
+}
+
+@test "fs.escape.regex - 用于 fs.replace 匹配" {
+	local test_file="/tmp/test_regex_escape_replace_$$.txt"
+	fs.write "$test_file" "path: /usr/local/bin" "path: /usr/bin"
+
+	local escaped=$(fs.escape.regex "/usr/local/bin")
+	run fs.replace "$test_file" "$escaped" "path: /opt/bin" "0"
+	[ "$status" -eq 0 ]
+
+	local content=$(cat "$test_file")
+	[ "$content" = $'path: /opt/bin\npath: /usr/bin' ]
+
+	rm -f "$test_file"
 }
