@@ -26,3 +26,5 @@ fs.cleanup() { ls -t ${1}* 2>/dev/null | tail -n +$((${2:-3} + 1)) | xargs -r rm
 fs.escape.regex() { printf '%s' "${1:-}" | sed 's/[].[\\^$*+?{}()|]/\\&/g; s/\//\\\//g'; }
 
 fs.escape.sed() { printf '%s' "${1:-}" | sed 's/\\/\\\\/g; s/&/\\&/g; s/|/\\|/g'; }
+
+fs.mktemp() { mktemp 2>/dev/null || { log.error "Failed to create temporary file" && return 1; }; }
