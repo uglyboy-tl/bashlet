@@ -79,8 +79,7 @@ args.process() {
 	[[ ! -n "$_ARGS_CURRENT_SUBCOMMAND" ]] && args.dispatch "$@" && exit 0
 	args.parse "$@"
 	args.verify || { args.show_help; exit 1; }
-	args.has "-h" "--help" && args.show_help && exit 0
-	return 0
+	args.has "-h" "--help" && args.show_help && exit 0 || true
 }
 
 args.parse() {
@@ -124,8 +123,7 @@ args.verify() {
 	for value in "${_ARGS_OPT_ARGS[@]}"; do
 		unset _ARGS_FINAL_ARGS[$value]
 	done
-	[[ $(map.len _ARGS_HELP_ARGS) -eq 0 ]] && [[ $(array.len _ARGS_FINAL_ARGS) -gt 0 ]] && log.error "位置参数错误" && return 1
-	return 0
+	[[ $(map.len _ARGS_HELP_ARGS) -eq 0 ]] && [[ $(array.len _ARGS_FINAL_ARGS) -gt 0 ]] && log.error "位置参数错误" && return 1 || true
 }
 
 args.has() {

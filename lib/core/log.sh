@@ -42,8 +42,8 @@ log() {
 	console.stderr "$prefix $@";
 }
 
-log.debug() { (( 0 >= _LOG_MIN_LEVEL )) && log debug "$@"; return 0; }
-log.info() { (( 1 >= _LOG_MIN_LEVEL )) && log info "$@"; return 0; }
-log.success() { (( 1 >= _LOG_MIN_LEVEL )) && log success "$@"; return 0; }
-log.warn() { (( 2 >= _LOG_MIN_LEVEL )) && log warn "$@"; return 0; }
-log.error() { (( 3 >= _LOG_MIN_LEVEL )) && log error "$@"; return 0; }
+log.debug() { (( 0 >= _LOG_MIN_LEVEL )) && log debug "$@" ||true; }
+log.info() { (( 1 >= _LOG_MIN_LEVEL )) && log info "$@" ||true; }
+log.success() { (( 1 >= _LOG_MIN_LEVEL )) && log success "$@" ||true; }
+log.warn() { (( 2 >= _LOG_MIN_LEVEL )) && log warn "$@" ||true; }
+log.error() { (( 3 >= _LOG_MIN_LEVEL )) && log error "$@" ||true; }

@@ -126,7 +126,6 @@ config.update() {
 		[[ -n "$_s" ]] && echo "$_sec"
 		echo "$_repl"
 	} >>"$_f"
-	return 0
 }
 
 config.save() {

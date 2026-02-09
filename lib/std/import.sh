@@ -20,7 +20,7 @@ import() {
 	for mod in "$@"
 	do
 		[[ "$mod" == /* ]] || mod="$_LIB_DIR/$mod"
-		source "${mod}.sh" 2>/dev/null || source "$mod" 2>/dev/null || return 1
+		[[ -f "${mod}.sh" ]] && source "${mod}.sh" || { [[ -f "${mod}" ]] && source "$mod"; } || return 1
 	done
 }
 

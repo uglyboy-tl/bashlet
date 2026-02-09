@@ -75,8 +75,7 @@ usage.show() {
 	[[ $(map.len _notices_ref) -gt 0 ]] && usage.section "Notices" && usage.section.items _notices_ref
 
 	# 当子命令变量为空时才显示 footer
-	[[ -z $_cmd_ref ]] && usage.footer
-	return 0
+	[[ -z $_cmd_ref ]] && usage.footer ||true
 }
 
 usage.version() { console.stderr "${BRIGHT_CYAN}${_USAGE_SCRIPT_NAME}${NC} version ${BRIGHT_GREEN}${VERSION:-null}${NC}"; }
