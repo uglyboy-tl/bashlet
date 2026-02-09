@@ -4,7 +4,7 @@ load 'test_helper/common-setup'
 
 setup() {
     _common_setup
-    import web/requests
+    import ext/requests
     # 重置配置，确保测试独立
     # requests.reset 2>/dev/null || true
     # 初始化 requests 模块
@@ -463,115 +463,6 @@ requests.reset() {
     grep -q "world" "$temp_result"
 
     rm -f "$temp_sse" "$temp_result"
-}
-
-# ============ Base64 编码解码测试 ============
-
-@test "requests.base64.encode() 编码普通文本" {
-    requests.init
-
-    # 创建临时文件
-    local temp_file=$(mktemp)
-    echo -n "hello world" > "$temp_file"
-
-    # 编码
-    encoded=$(requests.base64.encode "$temp_file")
-
-    # 验证编码结果
-    [ "$encoded" = "aGVsbG8gd29ybGQ=" ]
-
-    rm -f "$temp_file"
-}
-
-@test "requests.base64.encode() 编码包含特殊字符的文本" {
-    requests.init
-
-    local temp_file=$(mktemp)
-    printf '"quotes" and \n newlines\t' > "$temp_file"
-
-    encoded=$(requests.base64.encode "$temp_file")
-
-    # 验证编码结果不为空且只包含 base64 字符
-    [ -n "$encoded" ]
-    [[ "$encoded" =~ ^[A-Za-z0-9+/=]+$ ]]
-
-    rm -f "$temp_file"
-}
-
-@test "requests.base64.encode() 编码二进制数据" {
-    requests.init
-
-    local temp_file=$(mktemp)
-    # 生成包含所有字节值的二进制数据
-    printf '\x00\x01\x02\xff\xfe\xfd' > "$temp_file"
-
-    encoded=$(requests.base64.encode "$temp_file")
-
-    # 验证编码结果
-    [ -n "$encoded" ]
-    [[ "$encoded" =~ ^[A-Za-z0-9+/=]+$ ]]
-
-    rm -f "$temp_file"
-}
-
-@test "requests.base64.decode() 解码普通文本" {
-    requests.init
-
-    # 解码
-    decoded=$(echo "aGVsbG8gd29ybGQ=" | requests.base64.decode)
-
-    # 验证解码结果
-    [ "$decoded" = "hello world" ]
-}
-
-@test "requests.base64.decode() 解码包含特殊字符的文本" {
-    requests.init
-
-    # 原始文本包含引号和换行
-    local original='"quotes" and
- newlines	'
-    local encoded="InF1b3RlcyIgYW5kCiBuZXdsaW5lcwk="
-
-    decoded=$(echo "$encoded" | requests.base64.decode)
-
-    [ "$decoded" = "$original" ]
-}
-
-@test "requests.base64.encode() 和 requests.base64.decode() 编码解码一致性" {
-    requests.init
-
-    local temp_file=$(mktemp)
-    local test_data="Complex data: {\"key\": \"value\", \"number\": 123, \"bool\": true}"
-
-    echo -n "$test_data" > "$temp_file"
-
-    # 编码然后解码
-    encoded=$(requests.base64.encode "$temp_file")
-    decoded=$(echo "$encoded" | requests.base64.decode)
-
-    # 验证数据完整性
-    [ "$decoded" = "$test_data" ]
-
-    rm -f "$temp_file"
-}
-
-@test "requests.base64.encode() 和 requests.base64.decode() 处理二进制数据一致性" {
-    requests.init
-
-    local temp_file=$(mktemp)
-    # 生成包含各种字节值的二进制数据
-    local binary_data=$(printf '\x00\x01\x02\x03\x7f\x80\xff\xfe\xfd\xfc')
-
-    printf '%s' "$binary_data" > "$temp_file"
-
-    # 编码然后解码
-    encoded=$(requests.base64.encode "$temp_file")
-    decoded=$(echo "$encoded" | requests.base64.decode)
-
-    # 验证二进制数据完整性
-    [ "$decoded" = "$binary_data" ]
-
-    rm -f "$temp_file"
 }
 
 # ============ 下载功能测试 ============

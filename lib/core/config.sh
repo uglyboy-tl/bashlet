@@ -3,7 +3,7 @@
 import std/array
 import std/map
 import std/fs
-import core/path
+import std/path
 import core/log
 
 declare -ga _CONFIG_REGISTERED=()
@@ -117,7 +117,7 @@ config.update() {
 	[[ ! -f "$_f" ]] && config.save "$_f" && return 0
 
 	_sec="${_s:+[$_s]}"
-	_sec_grep="$(fs.escape.regex ${_sec})"
+	_sec_grep="$(string.escape.regex ${_sec})"
 	_pat="^${_k}[[:space:]]*=" _repl="${_k} = \"${_v}\""
 	[[ -n "$_sec" ]] && _n=$(fs.find "$_f" "^${_sec_grep}$") || _n="" && fs.find "$_f" "$_pat" "$_n" 1>/dev/null && fs.replace "$_f" "$_pat" "$_repl" "$_n" && return 0 || true
 	[[ -n "$_n" ]] && fs.insert "$_f" "^${_sec_grep}$" "$_repl" "0" && return 0 || true

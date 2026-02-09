@@ -46,24 +46,6 @@ teardown() {
 	[ "$status" -eq 0 ]
 }
 
-# ============ system.command.required 测试 ============
-
-@test "system.command.required - 存在的命令不报错" {
-	# 直接调用函数，setup 中已导入模块
-	system.command.required "bash"
-	[ $? -eq 0 ]
-}
-
-@test "集成测试 - command.required 检查存在的命令" {
-	system.command.required "ls"
-	[ $? -eq 0 ]
-}
-
-@test "system.command.required - 不存在的命令报错并退出" {
-	run system.command.required "nonexistent_command_xyz123"
-	[ "$status" -eq 1 ]
-}
-
 # ============ system.os 测试 ============
 
 @test "system.os - 返回当前操作系统类型" {

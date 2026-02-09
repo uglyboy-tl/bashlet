@@ -392,45 +392,8 @@ teardown() {
 	rm -f "$test_file"
 }
 
-# ============ fs.escape.sed 测试 ============
 
-@test "fs.escape.sed - 普通字符串保持不变" {
-	run fs.escape.sed "hello world"
-	[ "$status" -eq 0 ]
-	[ "$output" = "hello world" ]
-}
-
-@test "fs.escape.sed - 转义 & 字符" {
-	run fs.escape.sed "foo&bar"
-	[ "$status" -eq 0 ]
-	[ "$output" = "foo\&bar" ]
-}
-
-@test "fs.escape.sed - 转义 | 字符" {
-	run fs.escape.sed "a|b|c"
-	[ "$status" -eq 0 ]
-	[ "$output" = "a\|b\|c" ]
-}
-
-@test "fs.escape.sed - 转义反斜杠" {
-	run fs.escape.sed "C:\\Windows"
-	[ "$status" -eq 0 ]
-	[ "$output" = "C:\\\\Windows" ]
-}
-
-@test "fs.escape.sed - 混合特殊字符" {
-	run fs.escape.sed "C:\\Windows&a|b"
-	[ "$status" -eq 0 ]
-	[ "$output" = "C:\\\\Windows\&a\|b" ]
-}
-
-@test "fs.escape.sed - 空字符串返回空" {
-	run fs.escape.sed ""
-	[ "$status" -eq 0 ]
-	[ "$output" = "" ]
-}
-
-@test "fs.escape.sed - 用于 fs.replace 处理 & 字符" {
+@test "fs.replace - 使用 string.escape.regex 处理 & 字符" {
 	local test_file="/tmp/test_sed_escape_repl_$$.txt"
 	fs.write "$test_file" "config: old_value"
 
@@ -444,12 +407,12 @@ teardown() {
 	rm -f "$test_file"
 }
 
-@test "fs.escape.sed - 用于 fs.replace 处理混合特殊字符" {
+@test "fs.replace - 使用 string.escape.regex 处理混合特殊字符" {
 	local test_file="/tmp/test_sed_escape_repl_mixed_$$.txt"
 	fs.write "$test_file" "path: /usr/local/bin"
 
 	# 替换内容包含 \ & | (整行替换)
-	run fs.replace "$test_file" "$(fs.escape.regex "/usr/local/bin")" "C:\\Program Files&Tools|C:\\opt" "0"
+	run fs.replace "$test_file" "$(string.escape.regex "/usr/local/bin")" "C:\\Program Files&Tools|C:\\opt" "0"
 	[ "$status" -eq 0 ]
 
 	local content=$(cat "$test_file")
@@ -458,6 +421,20 @@ teardown() {
 	rm -f "$test_file"
 }
 
+
+@test "fs.replace - 使用 string.escape.regex 匹配" {
+	local test_file="/tmp/test_regex_escape_replace_$$.txt"
+	fs.write "$test_file" "path: /usr/local/bin" "path: /usr/bin"
+
+	local escaped=$(string.escape.regex "/usr/local/bin")
+	run fs.replace "$test_file" "$escaped" "path: /opt/bin" "0"
+	[ "$status" -eq 0 ]
+
+	local content=$(cat "$test_file")
+	[ "$content" = $'path: /opt/bin\npath: /usr/bin' ]
+
+	rm -f "$test_file"
+}
 # ============ fs.find 测试 ============
 
 @test "fs.find - 查找存在的模式返回行号" {
@@ -572,6 +549,18 @@ teardown() {
   rm -f "$test_file"
 }
 
+
+@test "fs.find - 使用 string.escape.regex 匹配" {
+	local test_file="/tmp/test_regex_escape_$$.txt"
+	fs.write "$test_file" "item[0] = value" "item[1] = other"
+
+	local escaped=$(string.escape.regex "item[0]")
+	run fs.find "$test_file" "$escaped"
+	[ "$status" -eq 0 ]
+	[ "$output" = "1" ]
+
+	rm -f "$test_file"
+}
 # ============ fs.insert 测试 ============
 
 @test "fs.insert - 在匹配行后插入新行" {
@@ -843,122 +832,4 @@ teardown() {
 	[ "$count" -eq 2 ]
 
 	rm -f /tmp/cleanup-few-*.bak 2>/dev/null
-}
-
-# ============ fs.escape.regex 测试 ============
-
-@test "fs.escape.regex - 转义方括号" {
-	run fs.escape.regex "[test]"
-	[ "$status" -eq 0 ]
-	[ "$output" = "\[test\]" ]
-}
-
-@test "fs.escape.regex - 转义斜杠" {
-	run fs.escape.regex "/usr/local/bin"
-	[ "$status" -eq 0 ]
-	[ "$output" = "\/usr\/local\/bin" ]
-}
-
-@test "fs.escape.regex - 转义点号" {
-	run fs.escape.regex "file.txt"
-	[ "$status" -eq 0 ]
-	[ "$output" = "file\.txt" ]
-}
-
-@test "fs.escape.regex - 转义星号" {
-	run fs.escape.regex "*.*"
-	[ "$status" -eq 0 ]
-	[ "$output" = "\*\.\*" ]
-}
-
-@test "fs.escape.regex - 转义问号" {
-	run fs.escape.regex "?"
-	[ "$status" -eq 0 ]
-	[ "$output" = "\?" ]
-}
-
-@test "fs.escape.regex - 转义加号" {
-	run fs.escape.regex "a+b"
-	[ "$status" -eq 0 ]
-	[ "$output" = "a\+b" ]
-}
-
-@test "fs.escape.regex - 转义圆括号" {
-	run fs.escape.regex "(group)"
-	[ "$status" -eq 0 ]
-	[ "$output" = "\(group\)" ]
-}
-
-@test "fs.escape.regex - 转义花括号" {
-	run fs.escape.regex "{1,3}"
-	[ "$status" -eq 0 ]
-	[ "$output" = "\{1,3\}" ]
-}
-
-@test "fs.escape.regex - 转义脱字符" {
-	run fs.escape.regex "^start"
-	[ "$status" -eq 0 ]
-	[ "$output" = "\^start" ]
-}
-
-@test "fs.escape.regex - 转义美元符" {
-	run fs.escape.regex "end$"
-	[ "$status" -eq 0 ]
-	[ "$output" = "end\\$" ]
-}
-
-@test "fs.escape.regex - 转义管道符" {
-	run fs.escape.regex "a|b"
-	[ "$status" -eq 0 ]
-	[ "$output" = "a\|b" ]
-}
-
-@test "fs.escape.regex - 转义反斜杠" {
-	run fs.escape.regex "\\n"
-	[ "$status" -eq 0 ]
-	[ "$output" = "\\\\n" ]
-}
-
-@test "fs.escape.regex - 普通字符串不变" {
-	run fs.escape.regex "hello world"
-	[ "$status" -eq 0 ]
-	[ "$output" = "hello world" ]
-}
-
-@test "fs.escape.regex - 空字符串返回空" {
-	run fs.escape.regex ""
-	[ "$status" -eq 0 ]
-	[ "$output" = "" ]
-}
-
-@test "fs.escape.regex - 混合特殊字符" {
-	run fs.escape.regex "[a-z]+.*"
-	[ "$status" -eq 0 ]
-	[ "$output" = "\[a-z\]\+\.\*" ]
-}
-
-@test "fs.escape.regex - 用于 fs.find 匹配" {
-	local test_file="/tmp/test_regex_escape_$$.txt"
-	fs.write "$test_file" "item[0] = value" "item[1] = other"
-
-	local escaped=$(fs.escape.regex "item[0]")
-	run fs.find "$test_file" "$escaped"
-	[ "$status" -eq 0 ]
-	[ "$output" = "1" ]
-
-	rm -f "$test_file"
-}
-
-@test "fs.escape.regex - 用于 fs.replace 匹配" {
-	local test_file="/tmp/test_regex_escape_replace_$$.txt"
-	fs.write "$test_file" "path: /usr/local/bin" "path: /usr/bin"
-
-	local escaped=$(fs.escape.regex "/usr/local/bin")
-	run fs.replace "$test_file" "$escaped" "path: /opt/bin" "0"
-	[ "$status" -eq 0 ]
-
-	local content=$(cat "$test_file")
-	[ "$content" = $'path: /opt/bin\npath: /usr/bin' ]
-
-	rm -f "$test_file"
 }

@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
 system.command.exist() { command -v "$1" >/dev/null 2>&1; }
-system.command.required() { ! system.command.exist "$1" && log.error "This module required \`$1\` command." && exit 1 || true ; }
 
 system.os() {
   [[ ! -z ${_SYSTEM_OS+x} ]] && echo "$_SYSTEM_OS" && return 0

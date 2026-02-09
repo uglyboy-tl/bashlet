@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+import std/string
 import std/system
 import std/fs
 import core/log
@@ -13,8 +14,8 @@ declare -g _REQUESTS_CURL=""
 declare -g _REQUESTS_JQ=""
 
 requests.init() {
-	system.command.required "curl" && _REQUESTS_CURL="$(command -v curl)"
-	system.command.required "jq" && _REQUESTS_JQ="$(command -v jq)"
+	! system.command.exist "curl" && log.error "This module required \`curl\` command." && exit 1 || _REQUESTS_CURL="$(command -v curl)"
+	! system.command.exist "jq" && log.error "This module required \`jq\` command." && exit 1 || _REQUESTS_JQ="$(command -v jq)"
 
 	_REQUESTS_HEADERS=(
 		["Accept"]="*/*"
@@ -101,7 +102,7 @@ requests.request() {
 	# 执行 curl 命令
 	local status_code=$("${curl_cmd[@]}" -w "%{http_code}" -D "$temp_headers" -o "$temp_body" 2>/dev/null)
 
-	local body_base64="$(requests.base64.encode "$temp_body")"
+	local body_base64="$(string.base64.encode "$temp_body")"
 
 	# 解析响应头为 JSON (使用 jq)
 	local headers_json="$("$_REQUESTS_JQ" -Rs 'split("\n") | map(select(length > 0 and test(":"))) | map(split(": ") | {(.[0]): .[1] | rtrimstr("\r")}) | add // {}' "$temp_headers")"
@@ -232,18 +233,10 @@ requests.headers() {
 	[[ -n "${2:-}" ]] && "$_REQUESTS_JQ" -r --arg name "$2" '.headers[$name] // empty' <<<"$1" || "$_REQUESTS_JQ" -r '.headers' <<<"$1"
 }
 
-requests.base64.encode() {
-	base64 -w 0 "$1" 2>/dev/null || base64 "$1" 2>/dev/null
-}
-
-requests.base64.decode() {
-	base64 -d 2>/dev/null || base64 -D 2>/dev/null
-}
-
 requests.text() {
 	requests.jq.check || return 1
 
-	"$_REQUESTS_JQ" -r '.body' <<<"$1" | requests.base64.decode
+	"$_REQUESTS_JQ" -r '.body' <<<"$1" | string.base64.decode
 }
 
 # 提取 JSON 响应 (可选 JSONPath)
