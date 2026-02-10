@@ -591,10 +591,10 @@ setup_verify() {
 
 @test "args.process - 无子命令时解析并验证参数" {
 	local tmp_script="/tmp/test_process_$$.sh"
-	cat > "$tmp_script" << 'SCRIPT'
+	cat > "$tmp_script" << SCRIPT
 #!/usr/bin/env bash
-PROJECT_ROOT="/home/uglyboy/Code/bashlet"
-source "$PROJECT_ROOT/lib/std/import.sh"
+PROJECT_ROOT="$PROJECT_ROOT"
+source "$PROJECT_ROOT/std/import.sh"
 import core/args
 args.init "测试脚本"
 args.add_options "file" "f" "输入文件" "FILE"
@@ -609,10 +609,10 @@ SCRIPT
 
 @test "args.process - 显示帮助时退出状态为0" {
 	local tmp_script="/tmp/test_help_$$.sh"
-	cat > "$tmp_script" << 'SCRIPT'
+	cat > "$tmp_script" << SCRIPT
 #!/usr/bin/env bash
-PROJECT_ROOT="/home/uglyboy/Code/bashlet"
-source "$PROJECT_ROOT/lib/std/import.sh"
+PROJECT_ROOT="$PROJECT_ROOT"
+source "$PROJECT_ROOT/std/import.sh"
 import core/args
 args.init "测试脚本"
 args.add_options "file" "f" "输入文件" "FILE"
@@ -628,10 +628,10 @@ SCRIPT
 
 @test "args.process - 验证失败时显示帮助并退出" {
 	local tmp_script="/tmp/test_verify_fail_$$.sh"
-	cat > "$tmp_script" << 'SCRIPT'
+	cat > "$tmp_script" << SCRIPT
 #!/usr/bin/env bash
-PROJECT_ROOT="/home/uglyboy/Code/bashlet"
-source "$PROJECT_ROOT/lib/std/import.sh"
+PROJECT_ROOT="$PROJECT_ROOT"
+source "$PROJECT_ROOT/std/import.sh"
 import core/args
 args.init
 args.add_options "file" "f" "输入文件" "FILE"

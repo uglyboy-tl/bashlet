@@ -2,6 +2,7 @@
 
 import std/string
 import std/system
+import std/array
 import std/fs
 import core/log
 
@@ -38,29 +39,23 @@ requests.jq.check() {
 requests.curl.configure() {
 	local array_name="$1"
 
-	requests._append_to_array "$array_name" "--max-time" "$_REQUESTS_TIMEOUT"
-	requests._append_to_array "$array_name" "-A" "$_REQUESTS_USER_AGENT"
+	array.append "$array_name" "--max-time" "$_REQUESTS_TIMEOUT"
+	array.append "$array_name" "-A" "$_REQUESTS_USER_AGENT"
 
 	local key
 	for key in "${!_REQUESTS_HEADERS[@]}"; do
-		requests._append_to_array "$array_name" "-H" "${key}: ${_REQUESTS_HEADERS[$key]}"
+		array.append "$array_name" "-H" "${key}: ${_REQUESTS_HEADERS[$key]}"
 	done
 
 	if [[ ${#_REQUESTS_AUTH[@]} -gt 0 ]]; then
 		local auth_key
 		for auth_key in "${!_REQUESTS_AUTH[@]}"; do
-			requests._append_to_array "$array_name" "-H" "${auth_key}: ${_REQUESTS_AUTH[$auth_key]}"
+			array.append "$array_name" "-H" "${auth_key}: ${_REQUESTS_AUTH[$auth_key]}"
 		done
 	fi
 }
 
-requests._append_to_array() {
-	local -n array_ref="$1"
-	shift
-	array_ref+=("$@")
-}
-
-requests._build_curl_request() {
+requests.request.build() {
 	local -n cmd_ref="$1"
 	local -r method="$2"
 	local -r url="$3"
@@ -87,11 +82,11 @@ requests.request() {
 	local -r body="$3"
 	local -r content_type="$4"
 
-	requests.curl.check || return 1
-	requests.jq.check || return 1
+	requests.curl.check
+	requests.jq.check
 
 	local curl_cmd
-	requests._build_curl_request curl_cmd "$method" "$url" "$body" "$content_type" || return 1
+	requests.request.build curl_cmd "$method" "$url" "$body" "$content_type" || return 1
 
 	# 创建临时文件
 	local temp_body="$(fs.mktemp)" || return 1
@@ -116,13 +111,13 @@ requests.request() {
 }
 
 requests.download() {
-	requests.curl.check || return 1
+	requests.curl.check
 	local curl_cmd=("$_REQUESTS_CURL" "-L")
 	requests.curl.configure curl_cmd
 	curl_cmd+=("-o" "$2")
 
 	# 是否显示进度
-	[[ "${3:-true}" == "true" ]] && curl_cmd+=("--progress-bar" "-s")
+	[[ "${3:-true}" == "true" ]] && curl_cmd+=("--progress-bar")
 
 	# 是否启用断点续传
 	[[ "${4:-true}" == "true" ]] && curl_cmd+=("-C" "-")
@@ -138,11 +133,11 @@ requests.sse() {
 	local -r body="$4"
 	local -r content_type="$5"
 
-	requests.curl.check || return 1
+	requests.curl.check
 
 	local curl_cmd
-	requests._build_curl_request curl_cmd "$method" "$url" "$body" "$content_type" || return 1
-	curl_cmd+=("--no-buffer")
+	requests.request.build curl_cmd "$method" "$url" "$body" "$content_type" || return 1
+	curl_cmd+=("-N")
 
 	"${curl_cmd[@]}" | while IFS= read -r line; do
 		[[ "$line" =~ ^data:\ (.+) ]] && "$callback" "${BASH_REMATCH[1]}"
@@ -163,10 +158,10 @@ requests.content_type.detect() {
 	echo ""
 }
 
-requests.body_from_map() {
+requests.body.build() {
 	local -n ref="$1"
 	local first=true
-	requests.jq.check || return 1
+	requests.jq.check
 	if [[ "${2:-form}" == "json" ]]; then
 		printf "{"
 		for key in "${!ref[@]}"; do
@@ -186,7 +181,7 @@ requests.body_from_map() {
 }
 
 # 构建查询字符串 - 将参数数组转换为 URL 编码的查询字符串
-requests.build.query() {
+requests.query.build() {
 	local query="" first=true
 	for param in "$@"; do
 		# 分割 key=value
@@ -203,7 +198,7 @@ requests.build.query() {
 }
 
 # GET 请求 - 接受 URL 和可选的查询参数
-requests.get() { requests.request "GET" "$1$(requests.build.query "${@:2}")" "" ""; }
+requests.get() { requests.request "GET" "$1$(requests.query.build "${@:2}")" "" ""; }
 
 # POST 请求 - 接受 URL、请求体和可选的 Content-Type
 requests.post() { requests.request "POST" "$1" "$2" "${3:-}"; }
@@ -227,22 +222,13 @@ requests.options() { requests.request "OPTIONS" "$1" "" ""; }
 requests.status_code() { "$_REQUESTS_JQ" -r '.status_code' <<<"$1"; }
 
 # 提取响应头 (可选指定字段名)
-requests.headers() {
-	requests.jq.check || return 1
+requests.headers() { [[ -n "${2:-}" ]] && "$_REQUESTS_JQ" -r --arg name "$2" '.headers[$name] // empty' <<<"$1" || "$_REQUESTS_JQ" -r '.headers' <<<"$1"; }
 
-	[[ -n "${2:-}" ]] && "$_REQUESTS_JQ" -r --arg name "$2" '.headers[$name] // empty' <<<"$1" || "$_REQUESTS_JQ" -r '.headers' <<<"$1"
-}
-
-requests.text() {
-	requests.jq.check || return 1
-
-	"$_REQUESTS_JQ" -r '.body' <<<"$1" | string.base64.decode
-}
+requests.text() { "$_REQUESTS_JQ" -r '.body' <<<"$1" | string.base64.decode; }
 
 # 提取 JSON 响应 (可选 JSONPath)
 requests.json() {
 	local -r body_text="$(requests.text "$1")"
-
 	[[ -n "${2:-}" ]] && "$_REQUESTS_JQ" -r "$2" <<<"$body_text" || echo "$body_text"
 }
 
@@ -250,32 +236,13 @@ requests.json() {
 requests.success() { "$_REQUESTS_JQ" -r '.success' <<<"$1"; }
 
 # 检查 HTTP 错误，非零退出 (类似 requests.raise_for_status())
-requests.raise_for_status() {
-	requests.jq.check || return 1
-
-	# 如果不成功，返回非零状态码
-	[[ "$(requests.success "${1:-}")" == "true" ]] || { log.error "HTTP error: status code $(requests.status_code "${1:-}")" && return 1; }
-}
+requests.raise_for_status() { [[ "$(requests.success "${1:-}")" == "true" ]] || { log.error "HTTP error: status code $(requests.status_code "${1:-}")" && return 1; }; }
 
 # 设置超时时间 (秒)
-requests.timeout() {
-	local -r seconds="$1"
-
-	# 验证输入参数：必须为正整数
-	[[ "$seconds" =~ ^[0-9]+$ ]] && ((seconds > 0)) || { log.error "timeout must be a positive integer" && return 1; }
-
-	_REQUESTS_TIMEOUT="$seconds"
-	log.debug "timeout set to ${seconds}s"
-}
-
-# 设置基础 URL (用于相对路径请求)
-requests.base_url() {
-	_REQUESTS_BASE_URL="$1"
-	log.debug "base URL set to: $1"
-}
+requests.timeout() { string.natural.check "$1" && _REQUESTS_TIMEOUT="$1" || { log.error "timeout must be a positive integer" && return 1; } ;}
 
 # 设置默认请求头 (可变参数: key1 value1 key2 value2 ...)
-requests.default_headers() {
+requests.headers.build() {
 	# 接受键值对参数
 	local key="${1:-}"
 	shift
@@ -292,20 +259,14 @@ requests.default_headers() {
 	done
 }
 
+# 设置基础 URL (用于相对路径请求)
+requests.base_url() { _REQUESTS_BASE_URL="$1"; }
+
 # 清空默认请求头
-requests.headers_clear() {
-	_REQUESTS_HEADERS=()
-	log.debug "default headers cleared"
-}
+requests.headers_clear() { _REQUESTS_HEADERS=(); }
 
 # 设置 Basic Auth (用户名 密码)
-requests.auth() {
-	_REQUESTS_AUTH["Authorization"]="Basic $(jq -nr --arg c "$1:$2" '$c | @base64')"
-	log.debug "Basic Auth set for user: $1"
-}
+requests.auth() { _REQUESTS_AUTH["Authorization"]="Basic $(jq -nr --arg c "$1:$2" '$c | @base64')"; }
 
 # 设置 Bearer Token
-requests.auth_bearer() {
-	_REQUESTS_AUTH["Authorization"]="Bearer $1"
-	log.debug "Bearer Token set"
-}
+requests.auth_bearer() { _REQUESTS_AUTH["Authorization"]="Bearer $1"; }

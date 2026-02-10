@@ -10,6 +10,12 @@ array.contains() {
 	[[ " ${ref[*]} " == *" $2 "* ]]
 }
 
+array.append() {
+	local -n array_ref="$1"
+	shift
+	array_ref+=("$@")
+}
+
 array.get() {
 	local -n ref="$1"
 	local len=${#ref[@]}

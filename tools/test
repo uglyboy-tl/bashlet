@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+VERSION="1.0.0"
 
 # 测试运行器 - 运行bashlet项目的Bats测试
 
@@ -113,9 +114,9 @@ main() {
 	args.name "测试运行器"
 
 	args.init "运行 bashlet 项目的 Bats 测试"
+	args.add_options "version" "v" "显示版本信息"
 	args.add_options "filter" "f" "只运行匹配模式的测试" "STRING"
 	args.add_options "jobs" "j" "并行运行测试 (默认: 1)" "NUM"
-	args.add_options "verbose" "v" "详细输出"
 	args.add_options "tap" "t" "使用TAP格式输出"
 	args.add_options "count" "c" "只计算测试数量"
 	args.add_options "arg" "测试文件/模式" "可选：指定测试文件或目录(默认: 运行所有测试)"
@@ -128,7 +129,7 @@ main() {
 	args.add_options "notice" '测试文件必须使用 .bats 扩展名'
 
 	args.process "$@"
-	#args.has "-c" "--count" && show_test_stats && exit 0
+	args.has "-v" "--version" && usage.version && exit 0
 	args.has "-c" "--count" && COUNT_ONLY="true" || COUNT_ONLY="false"
 	args.has "-v" "--verbose" && VERBOSE="true" || VERBOSE="false"
 	args.has "-t" "--tap" && TAP_FORMAT="true" || TAP_FORMAT="false"

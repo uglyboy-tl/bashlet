@@ -282,12 +282,12 @@ requests.reset() {
     [ "$status_code" -eq 200 ]
 }
 
-@test "requests.default_headers() 设置请求头" {
+@test "requests.headers.build() 设置请求头" {
     requests.init
 
     # 设置自定义请求头 - 使用 || true 防止 set -e 导致测试失败
-    requests.default_headers "X-Custom-Header" "CustomValue"
-    requests.default_headers "X-Another-Header" "AnotherValue"
+    requests.headers.build "X-Custom-Header" "CustomValue"
+    requests.headers.build "X-Another-Header" "AnotherValue"
 
     response=$(requests.get "https://httpbin.org/headers")
     body_text=$(requests.text "$response")
@@ -303,7 +303,7 @@ requests.reset() {
     requests.init
 
     # 先设置一些请求头 - 使用 || true 防止 set -e 导致测试失败
-    requests.default_headers "X-Test-Header" "TestValue" || true
+    requests.headers.build "X-Test-Header" "TestValue" || true
 
     # 清空请求头
     requests.headers_clear
@@ -376,14 +376,14 @@ requests.reset() {
     [[ "$json_data" == *"<html>"* ]]
 }
 
-@test "requests.build.query() 构建查询字符串" {
+@test "requests.query.build() 构建查询字符串" {
     requests.init
 
     # 创建参数数组
     declare -a params=("key1=value1" "key2=value with spaces" "key3=special&chars")
 
     # 构建查询字符串
-    query_string=$(requests.build.query "${params[@]}")
+    query_string=$(requests.query.build "${params[@]}")
 
     # 检查查询字符串格式
     [[ "$query_string" == "?"* ]]
@@ -400,21 +400,21 @@ requests.reset() {
     [ "$encoded" = "hello%20world%20%26%20special%2Fchars" ]
 }
 
-@test "requests.body_from_map() form 格式" {
+@test "requests.body.build() form 格式" {
     requests.init
 
     declare -A data=([name]="test" [value]="hello world")
-    body=$(requests.body_from_map data)
+    body=$(requests.body.build data)
 
     [[ "$body" == *"name=test"* ]]
     [[ "$body" == *"value=hello%20world"* ]]
 }
 
-@test "requests.body_from_map() json 格式" {
+@test "requests.body.build() json 格式" {
     requests.init
 
     declare -A data=([name]="test" [value]="hello")
-    body=$(requests.body_from_map data json)
+    body=$(requests.body.build data json)
 
     [[ "$body" == *'"name":"test"'* ]]
     [[ "$body" == *'"value":"hello"'* ]]
@@ -559,7 +559,7 @@ requests.reset() {
 
     # 设置自定义超时和请求头
     requests.timeout 60
-    requests.default_headers "X-Test-Header" "test-value"
+    requests.headers.build "X-Test-Header" "test-value"
 
     local temp_output=$(mktemp)
 

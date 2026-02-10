@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
+VERSION="0.2.0"
 
-#set -euo pipefail
+set -euo pipefail
+
 
 CURRENT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SUBMODULE_DIR="$(dirname "$CURRENT_PATH")"
@@ -8,10 +10,27 @@ SUBMODULE_NAME="$(basename "$SUBMODULE_DIR")"
 PROJECT_ROOT="$(dirname "$SUBMODULE_DIR")"
 LIB_DIR="$PROJECT_ROOT/lib"
 
-mkdir -p "$LIB_DIR"/ext
-cd "$PROJECT_ROOT"
-[[ ! -d lib/core ]] && ln -rs "$SUBMODULE_NAME/lib/core" lib/
-[[ ! -d lib/std ]] && ln -rs "$SUBMODULE_NAME/lib/std" lib/
+source "$SUBMODULE_DIR/lib/std/import.sh"
 
-[[ ! -f "main.sh" ]] &&cp "$SUBMODULE_NAME/examples/main.sh" ./
-touch ./config.toml
+import std/init
+import core/args
+
+main() {
+	args.init 构建开发环境
+	args.add_options "version" "v" "显示版本信息"
+
+	args.process "$@"
+	args.has "-v" "--version" && usage.version && exit 0
+
+	mkdir -p "$LIB_DIR"/ext
+	cd "$PROJECT_ROOT"
+	[[ ! -d lib/core ]] && ln -rs "$SUBMODULE_NAME/lib/core" lib/
+	[[ ! -d lib/std ]] && ln -rs "$SUBMODULE_NAME/lib/std" lib/
+
+	[[ ! -f "main.sh" ]] && cp "$SUBMODULE_NAME/examples/main.sh" ./
+	touch ./config.toml
+}
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+		main "$@"
+fi

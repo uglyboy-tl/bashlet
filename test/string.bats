@@ -233,4 +233,178 @@ setup() {
 	[ "$output" = "\[a-z\]\+\.\*" ]
 }
 
+# ============ string.trim 测试 ============
+
+@test "string.trim - 去除两端空格" {
+	run string.trim "  hello world  "
+	[ "$status" -eq 0 ]
+	[ "$output" = "hello world" ]
+}
+
+@test "string.trim - 去除两端tab" {
+	run string.trim $'\thello world\t'
+	[ "$status" -eq 0 ]
+	[ "$output" = "hello world" ]
+}
+
+@test "string.trim - 去除混合空白字符" {
+	run string.trim $'  \t hello world \n '
+	[ "$status" -eq 0 ]
+	[ "$output" = "hello world" ]
+}
+
+@test "string.trim - 保留中间空白字符" {
+	run string.trim "  hello   world  "
+	[ "$status" -eq 0 ]
+	[ "$output" = "hello   world" ]
+}
+
+@test "string.trim - 无空白字符保持不变" {
+	run string.trim "hello"
+	[ "$status" -eq 0 ]
+	[ "$output" = "hello" ]
+}
+
+@test "string.trim - 空字符串返回空" {
+	run string.trim ""
+	[ "$status" -eq 0 ]
+	[ "$output" = "" ]
+}
+
+@test "string.trim - 只有空白字符返回空" {
+	run string.trim "   "
+	[ "$status" -eq 0 ]
+	[ "$output" = "" ]
+}
+
+# ============ string.int.check 测试 ============
+
+@test "string.int.check - 正整数返回成功" {
+	run string.int.check "123"
+	[ "$status" -eq 0 ]
+}
+
+@test "string.int.check - 负整数返回成功" {
+	run string.int.check "-123"
+	[ "$status" -eq 0 ]
+}
+
+@test "string.int.check - 0返回成功" {
+	run string.int.check "0"
+	[ "$status" -eq 0 ]
+}
+
+@test "string.int.check - 大数返回成功" {
+	run string.int.check "999999999999"
+	[ "$status" -eq 0 ]
+}
+
+@test "string.int.check - 小数返回失败" {
+	run string.int.check "123.45"
+	[ "$status" -ne 0 ]
+}
+
+@test "string.int.check - 字符串返回失败" {
+	run string.int.check "abc"
+	[ "$status" -ne 0 ]
+}
+
+@test "string.int.check - 混合字符串返回失败" {
+	run string.int.check "123abc"
+	[ "$status" -ne 0 ]
+}
+
+@test "string.int.check - 空字符串返回失败" {
+	run string.int.check ""
+	[ "$status" -ne 0 ]
+}
+
+@test "string.int.check - 只有符号返回失败" {
+	run string.int.check "-"
+	[ "$status" -ne 0 ]
+}
+
+@test "string.int.check - 中间有符号返回失败" {
+	run string.int.check "12-34"
+	[ "$status" -ne 0 ]
+}
+
+# ============ string.natural.check 测试 ============
+
+@test "string.natural.check - 正整数返回成功" {
+	run string.natural.check "123"
+	[ "$status" -eq 0 ]
+}
+
+@test "string.natural.check - 负数返回失败" {
+	run string.natural.check "-123"
+	[ "$status" -ne 0 ]
+}
+
+@test "string.natural.check - 0返回失败" {
+	run string.natural.check "0"
+	[ "$status" -ne 0 ]
+}
+
+@test "string.natural.check - 01返回失败" {
+	run string.natural.check "01"
+	[ "$status" -ne 0 ]
+}
+
+@test "string.natural.check - 小数返回失败" {
+	run string.natural.check "123.45"
+	[ "$status" -ne 0 ]
+}
+
+@test "string.natural.check - 字符串返回失败" {
+	run string.natural.check "abc"
+	[ "$status" -ne 0 ]
+}
+
+@test "string.natural.check - 空字符串返回失败" {
+	run string.natural.check ""
+	[ "$status" -ne 0 ]
+}
+
+# ============ string.float.check 测试 ============
+
+@test "string.float.check - 正小数返回成功" {
+	run string.float.check "123.45"
+	[ "$status" -eq 0 ]
+}
+
+@test "string.float.check - 负小数返回成功" {
+	run string.float.check "-123.45"
+	[ "$status" -eq 0 ]
+}
+
+@test "string.float.check - 整数返回失败" {
+	run string.float.check "123"
+	[ "$status" -ne 0 ]
+}
+
+@test "string.float.check - 整数.返回失败" {
+	run string.float.check "123."
+	[ "$status" -ne 0 ]
+}
+
+@test "string.float.check - .小数返回失败" {
+	run string.float.check ".45"
+	[ "$status" -ne 0 ]
+}
+
+@test "string.float.check - 0.45返回成功" {
+	run string.float.check "0.45"
+	[ "$status" -eq 0 ]
+}
+
+@test "string.float.check - 字符串返回失败" {
+	run string.float.check "abc"
+	[ "$status" -ne 0 ]
+}
+
+@test "string.float.check - 空字符串返回失败" {
+	run string.float.check ""
+	[ "$status" -ne 0 ]
+}
 

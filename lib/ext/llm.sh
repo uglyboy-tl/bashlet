@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-import web/requests
+import ext/requests
 import core/log
 
 declare -g _LLM_API_KEY=""
@@ -8,7 +8,7 @@ declare -g _LLM_MODEL="deepseek-chat"
 declare -g _LLM_BASE_URL="https://api.deepseek.com/v1"
 
 llm.init() {
-	requests.init || return 1
+	requests.init
 	log.debug "llm module initialized: model=$_LLM_MODEL"
 }
 
@@ -19,6 +19,8 @@ llm.base_url() { _LLM_BASE_URL="$1"; }
 llm.chat() {
 	local messages="$1"
 	local callback="${2:-llm._default_callback}"
+
+	requests.jq.check
 
 	[[ -n "$_LLM_API_KEY" ]] || { log.error "API key not set. Call llm.api_key first." && return 1; }
 
@@ -32,7 +34,6 @@ llm.chat() {
 			stream: true
 		}')
 
-	requests.default_headers "Content-Type" "application/json"
 	requests.auth_bearer "$_LLM_API_KEY"
 
 	requests.sse "$callback" "POST" "${_LLM_BASE_URL}/chat/completions" "$body"
