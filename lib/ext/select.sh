@@ -10,7 +10,7 @@ select._fzf_single() {
 }
 
 select._fzf_multi() {
-	printf '%s\n' "${@:2}" | fzf --prompt="$1 " --height=10 --multi --bind 'space:toggle' | paste -sd ' ' -
+	printf '%s\n' "${@:2}" | fzf --prompt="$1 " --height=10 -m --bind 'space:toggle' --bind 'ctrl-a:select-all' --header="✔ Use ↑/↓ to navigate, Space to toggle, Ctrl-A to select all" | paste -sd ' ' -
 }
 
 select._native_single() {

@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-VERSION="0.3.0"
+VERSION="0.3.1"
 
 set -euo pipefail
-
 
 CURRENT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SUBMODULE_DIR="$(dirname "$CURRENT_PATH")"
@@ -28,7 +27,7 @@ main() {
 	[[ ! -d lib/core ]] && ln -rsfn "$SUBMODULE_NAME/lib/core" lib/
 	[[ ! -d lib/std ]] && ln -rsfn "$SUBMODULE_NAME/lib/std" lib/
 
-	if selected=$(select.multi "选择要安装的扩展模块:" "$SUBMODULE_NAME"/lib/ext/*.sh); then
+	if selected=$(select.multi "选择要安装的扩展模块" "$SUBMODULE_NAME"/lib/ext/*.sh); then
 		for f in $selected; do
 			ln -rsfn "$f" lib/ext
 		done

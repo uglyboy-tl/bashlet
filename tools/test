@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-VERSION="1.0.0"
+VERSION="1.0.1"
 
 # 测试运行器 - 运行bashlet项目的Bats测试
 
@@ -131,7 +131,6 @@ main() {
 	args.process "$@"
 	args.has "-v" "--version" && usage.version && exit 0
 	args.has "-c" "--count" && COUNT_ONLY="true" || COUNT_ONLY="false"
-	args.has "-v" "--verbose" && VERBOSE="true" || VERBOSE="false"
 	args.has "-t" "--tap" && TAP_FORMAT="true" || TAP_FORMAT="false"
 	FILTER_PATTERN=$(args.get "-f" "--filter" 2>/dev/null) || FILTER_PATTERN=""
 	JOBS=$(args.get "-j" "--jobs" 2>/dev/null) || JOBS="1"

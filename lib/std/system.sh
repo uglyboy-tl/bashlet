@@ -4,14 +4,15 @@ system.command.exist() { command -v "$1" >/dev/null 2>&1; }
 
 system.os() {
   [[ ! -z ${_SYSTEM_OS+x} ]] && echo "$_SYSTEM_OS" && return 0
-  local -r os="$(uname -s | tr '[:upper:]' '[:lower:]')"
-  case "$os" in
-    darwin)  echo "macos" ;;
-    linux)   echo "linux" ;;
-    mingw*|msys*|cygwin*) echo "windows" ;;
+  case "$OSTYPE" in
+    darwin*)  echo "macos" ;;
+    linux*)   echo "linux" ;;
+    msys*|cygwin*) echo "windows" ;;
+    bsd*)     echo "bsd" ;;
+    solaris*) echo "solaris" ;;
     *)  echo"unknown" ;;
   esac
-  log.debug "OS: $os"
+  log.debug "OS: $OSTYPE"
 }
 
 system.arch() {
