@@ -44,7 +44,7 @@ llm._sse_callback() {
 
 	local content
 	content=$(jq -r '.choices[0].delta.content // empty' <<<"$1")
-	[[ -n "$content" ]] && printf "%s" "$content"
+	[[ -n "$content" ]] && printf "%s" "$content" || true
 }
 
 llm.chat.stream() {

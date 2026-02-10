@@ -131,7 +131,7 @@ requests.sse() {
 	local -r method="$2"
 	local -r url="$3"
 	local -r body="$4"
-	local -r content_type="$5"
+	local -r content_type="${5:-$(requests.content_type.detect "$4")}"
 
 	requests.curl.check
 
