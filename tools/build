@@ -106,7 +106,7 @@ main() {
     args.has "-v" "--version" && usage.version && exit 0
 	declare -n args=$(args.args)
 	[[ ${#args[@]} -ne 0 ]] && MAIN_FILE="${args[@]}" || MAIN_FILE="main.sh"
-    OUTPUT_FILE=$(args.get "-o" "--output" 2>/dev/null) || { local name="${SCRIPT_NAME:-${MAIN_FILE%% *}}"; OUTPUT_FILE="build/${name,,}";}
+    OUTPUT_FILE=$(args.get "-o" "--output" 2>/dev/null) || { local name="${SCRIPT_NAME:-${MAIN_FILE%% *}}"; OUTPUT_FILE="${OUTPUT_DIR:-build}/${name,,}";}
     build
 }
 

@@ -34,8 +34,6 @@ build_bats_args() {
 	# 格式选项
 	if [[ "$TAP_FORMAT" == "true" ]]; then
 			args+=("--tap")
-	elif [[ "$VERBOSE" == "true" ]]; then
-			args+=("-v")
 	fi
 
 	# 过滤选项
