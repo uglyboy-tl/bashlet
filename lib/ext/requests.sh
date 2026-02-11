@@ -38,8 +38,9 @@ requests.jq.check() {
 
 requests.curl.configure() {
 	local array_name="$1"
+	local no_timeout="${2:-}"
 
-	array.append "$array_name" "--max-time" "$_REQUESTS_TIMEOUT"
+	[[ -n "$no_timeout" ]] || array.append "$array_name" "--max-time" "$_REQUESTS_TIMEOUT"
 	array.append "$array_name" "-A" "$_REQUESTS_USER_AGENT"
 
 	local key
@@ -113,7 +114,7 @@ requests.request() {
 requests.download() {
 	requests.curl.check
 	local curl_cmd=("$_REQUESTS_CURL" "-L")
-	requests.curl.configure curl_cmd
+	requests.curl.configure curl_cmd "no"
 	curl_cmd+=("-o" "$2")
 
 	# 是否显示进度
@@ -242,7 +243,7 @@ requests.raise_for_status() { [[ "$(requests.success "${1:-}")" == "true" ]] || 
 requests.timeout() { string.natural.check "$1" && _REQUESTS_TIMEOUT="$1" || { log.error "timeout must be a positive integer" && return 1; } ;}
 
 # 设置默认请求头 (可变参数: key1 value1 key2 value2 ...)
-requests.headers.build() {
+requests.headers.append() {
 	# 接受键值对参数
 	local key="${1:-}"
 	shift

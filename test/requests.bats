@@ -282,12 +282,12 @@ requests.reset() {
     [ "$status_code" -eq 200 ]
 }
 
-@test "requests.headers.build() 设置请求头" {
+@test "requests.headers.append() 设置请求头" {
     requests.init
 
     # 设置自定义请求头 - 使用 || true 防止 set -e 导致测试失败
-    requests.headers.build "X-Custom-Header" "CustomValue"
-    requests.headers.build "X-Another-Header" "AnotherValue"
+    requests.headers.append "X-Custom-Header" "CustomValue"
+    requests.headers.append "X-Another-Header" "AnotherValue"
 
     response=$(requests.get "https://httpbin.org/headers")
     body_text=$(requests.text "$response")
@@ -303,7 +303,7 @@ requests.reset() {
     requests.init
 
     # 先设置一些请求头 - 使用 || true 防止 set -e 导致测试失败
-    requests.headers.build "X-Test-Header" "TestValue" || true
+    requests.headers.append "X-Test-Header" "TestValue" || true
 
     # 清空请求头
     requests.headers_clear
@@ -559,7 +559,7 @@ requests.reset() {
 
     # 设置自定义超时和请求头
     requests.timeout 60
-    requests.headers.build "X-Test-Header" "test-value"
+    requests.headers.append "X-Test-Header" "test-value"
 
     local temp_output=$(mktemp)
 
