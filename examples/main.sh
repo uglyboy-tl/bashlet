@@ -6,12 +6,12 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 source "$PROJECT_ROOT/lib/std/import.sh"
 
-import std/init
+import core/log
 import core/args
 import core/config
 
 main() {
-	args.name "$SCRIPT_NAME"
+	args.name "${SCRIPT_NAME:-Demo}"
 	args.init
 
 	args.add_options "version" "v" "显示版本信息"
