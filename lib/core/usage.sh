@@ -16,7 +16,7 @@ usage.title() {
 	local _title="$_USAGE_SCRIPT_NAME"
 	[[ -n $_ARGS_CURRENT_SUBCOMMAND ]] && _title="$_title - $_ARGS_CURRENT_SUBCOMMAND"
 	[[ -n $_USAGE_SCRIPT_DESC ]] && _title="$_title - $_USAGE_SCRIPT_DESC"
-	console.stderr "${Bold}${_title}${NC}"
+	console.stdout "${Bold}${_title}${NC}"
 }
 
 usage.usage() {
@@ -26,12 +26,12 @@ usage.usage() {
 	(( ${2:-0} )) && _usage_line="${_usage_line} ${BRIGHT_YELLOW}[OPTIONS]${NC}"
 	(( ${3:-0} )) && _usage_line="${_usage_line} ${BRIGHT_YELLOW}[ARGUMENTS]${NC}"
 
-	console.stderr "$_usage_line"
+	console.stdout "$_usage_line"
 }
 
 usage.section() {
 	echo ""
-	console.stderr "${Bold}${BRIGHT_BLUE}$1${NC}:"
+	console.stdout "${Bold}${BRIGHT_BLUE}$1${NC}:"
 }
 
 usage.section.items() {
@@ -52,7 +52,7 @@ usage.section.items() {
 usage.footer() {
 	[[ ${#_ARGS_SUBCOMMANDS[@]} -eq 0 ]] && return 0
 	echo ""
-	console.stderr "${BRIGHT_BLACK}Use '${BRIGHT_WHITE}$_USAGE_SCRIPT_FILENAME <subcommand> --help${BRIGHT_BLACK}' for subcommand help${NC}"
+	console.stdout "${BRIGHT_BLACK}Use '${BRIGHT_WHITE}$_USAGE_SCRIPT_FILENAME <subcommand> --help${BRIGHT_BLACK}' for subcommand help${NC}"
 }
 
 usage.show() {
@@ -78,4 +78,4 @@ usage.show() {
 	[[ -z $_cmd_ref ]] && usage.footer ||true
 }
 
-usage.version() { console.stderr "${BRIGHT_CYAN}${_USAGE_SCRIPT_NAME}${NC} version ${BRIGHT_GREEN}${VERSION:-null}${NC}"; }
+usage.version() { console.stdout "${BRIGHT_CYAN}${_USAGE_SCRIPT_NAME}${NC} version ${BRIGHT_GREEN}${VERSION:-null}${NC}"; }
