@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-VERSION="0.3.1"
+VERSION="0.4.1"
 
 set -euo pipefail
 
@@ -10,10 +10,7 @@ PROJECT_ROOT="$(dirname "$SUBMODULE_DIR")"
 LIB_DIR="$PROJECT_ROOT/lib"
 
 source "$SUBMODULE_DIR/lib/std/import.sh"
-
-import std/init
 import core/args
-import ext/select
 
 main() {
 	args.init 构建开发环境
@@ -22,17 +19,11 @@ main() {
 	args.process "$@"
 	args.has "-v" "--version" && usage.version && exit 0
 
-	mkdir -p "$LIB_DIR"/ext
+	mkdir -p "$LIB_DIR"
 	cd "$PROJECT_ROOT"
 	[[ ! -d lib/core ]] && ln -rsfn "$SUBMODULE_NAME/lib/core" lib/
 	[[ ! -d lib/std ]] && ln -rsfn "$SUBMODULE_NAME/lib/std" lib/
-
-	if selected=$(select.multi "选择要安装的扩展模块" "$SUBMODULE_NAME"/lib/ext/*.sh); then
-		for f in $selected; do
-			ln -rsfn "$f" lib/ext
-		done
-	fi
-
+	[[ ! -d lib/ext ]] && ln -rsfn "$SUBMODULE_NAME/lib/ext" lib/
 	[[ ! -f "main.sh" ]] && cp "$SUBMODULE_NAME/examples/main.sh" ./
 	[[ ! -f "config.toml" ]] && touch config.toml
 }
