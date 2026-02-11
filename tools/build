@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-VERSION="1.0.1"
+VERSION="2.0.0"
 # Bin Updater Build Script - 将所有模块合并成单一文件
 
 set -euo pipefail
@@ -8,10 +8,37 @@ LC_COLLATE=C
 
 PROJECT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 source "$PROJECT_ROOT/lib/std/import.sh"
-
-import std/init
+.env
+import std/ansi
 import core/log
 import core/args
+
+: ${SCRIPT_NAME:="Demo"}
+# 确保颜色变量被定义（在非交互模式下 ansi.enable.color 不会执行）
+ansi.disable.color
+
+# 分析 MAIN_FILE 的实际依赖
+# 在子进程中 source MAIN_FILE，然后返回 __loaded_modules 中的所有模块路径
+analyze_dependencies() {
+    local main_file="$1"
+    # 子进程中执行，隔离环境
+    (
+        # 切换到主文件所在目录
+        cd "$(dirname "$main_file")" 2>/dev/null || exit 1
+        local main_name="$(basename "$main_file")"
+
+        # 重置 __loaded_modules
+        declare -ga __loaded_modules=()
+
+        # 执行主文件（这会触发所有的 import）
+        [[ -f "$main_name" ]] && . "$main_name" 2>/dev/null || true
+
+        # 输出所有已加载的模块路径（按加载顺序）
+        for mod in "${__loaded_modules[@]}"; do
+            [[ "$mod" != "$PROJECT_ROOT/lib/std/import.sh" ]] && echo "$mod"
+        done
+    )
+}
 
 # 处理 lib 文件：移除 shebang、set、注释，并删除空白行
 process_sub_file() {
@@ -35,6 +62,9 @@ process_sub_file() {
 
         # 跳过 import/source 语句
         [[ "$line" =~ ^[[:space:]]*(import|source)[[:space:]] ]] && continue
+
+        # 跳过 .env 语句
+        [[ "$line" =~ ^[[:space:]]*\.env([[:space:]]|$) ]] && continue
 
         # 处理注释
         if [[ "$line" =~ ^[[:space:]]*# ]]; then
@@ -68,16 +98,15 @@ build() {
     [[ -n "$SCRIPT_NAME" ]] && echo "SCRIPT_NAME=\"$SCRIPT_NAME\"" >&3
     [[ -n "$SCRIPT_VERSION" ]] && echo "VERSION=\"$SCRIPT_VERSION\"" >&3
 
-    # 合并所有 lib 文件
-    local files=()
-    # 收集 lib/*/*.sh
-    for f in "$PROJECT_ROOT"/lib/*/*.sh; do [[ -f "$f" ]] && files+=("$f"); done
-    # 收集 lib/*.sh（如果存在）
-    for f in "$PROJECT_ROOT"/lib/*.sh; do [[ -f "$f" ]] && files+=("$f"); done
-    # 添加主文件
-    for f in $MAIN_FILE; do files+=("$PROJECT_ROOT/$f"); done
+    log.info "分析依赖: $MAIN_FILE"
+    local main_path="$PROJECT_ROOT/$MAIN_FILE"
+    [[ -f "$main_path" ]] || { log.error "主文件不存在: $MAIN_FILE"; return 1; }
 
-    for file in "${files[@]}"; do
+    # 读取依赖列表：import.sh 在首位，已去重
+    local -a all_deps=($(analyze_dependencies "$main_path"))
+    # 合并依赖文件
+    for file in "${all_deps[@]}" "$main_path"; do
+        [[ -f "$file" ]] || continue
         log.info "合并: ${file#$PROJECT_ROOT/}"
         process_sub_file "$file" >&3
     done
@@ -105,8 +134,8 @@ main() {
     args.process "$@"
     args.has "-v" "--version" && usage.version && exit 0
 	declare -n args=$(args.args)
-	[[ ${#args[@]} -ne 0 ]] && MAIN_FILE="${args[@]}" || MAIN_FILE="main.sh"
-    OUTPUT_FILE=$(args.get "-o" "--output" 2>/dev/null) || { local name="${SCRIPT_NAME:-${MAIN_FILE%% *}}"; OUTPUT_FILE="${OUTPUT_DIR:-build}/${name,,}";}
+	[[ ${#args[@]} -gt 0 ]] && MAIN_FILE="${args[0]}" || MAIN_FILE="main.sh"
+    OUTPUT_FILE=$(args.get "-o" "--output" 2>/dev/null) || { local name="${SCRIPT_NAME:-$MAIN_FILE}"; OUTPUT_FILE="${OUTPUT_DIR:-build}/${name,,}";}
     build
 }
 
