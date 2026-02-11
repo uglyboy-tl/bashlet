@@ -135,7 +135,7 @@ teardown() {
 @test "默认等级为 INFO" {
 	unset _LOG_LEVEL _LOG_MIN_LEVEL
 	# 清除导入缓存并重新导入，使默认等级生效
-	unset '__loaded_modules[$_LIB_DIR/core/log.sh]'
+	__loaded_modules=()
 	import core/log.sh
 	
 	# DEBUG 应该关闭
@@ -153,7 +153,7 @@ teardown() {
 	unset _LOG_LEVEL _LOG_MIN_LEVEL
 	export _LOG_LEVEL=ERROR
 	# 清除导入缓存并重新导入，使环境变量生效
-	unset '__loaded_modules[$_LIB_DIR/core/log.sh]'
+	__loaded_modules=()
 	import core/log.sh
 	
 	# WARN 应该关闭

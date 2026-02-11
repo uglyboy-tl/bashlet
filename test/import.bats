@@ -19,7 +19,7 @@ teardown() {
 	cd "$PROJECT_ROOT/std"
 
 	source "console.sh"
-	[ "${#__loaded_modules[@]}" -eq 2 ]
+	[ "${#__loaded_modules[@]}" -eq 3 ]
 
 	# 验证console.stderr函数可用
 	run console.stderr "test message"
@@ -31,7 +31,7 @@ teardown() {
 
 	# 再次加载（应该被阻止）
 	source "console.sh"
-	[ "${#__loaded_modules[@]}" -eq 2 ]
+	[ "${#__loaded_modules[@]}" -eq 3 ]
 
 	# 验证console.stderr函数可用
 	run console.stderr "test message"
@@ -43,11 +43,11 @@ teardown() {
 	cd "$PROJECT_ROOT/std"
 
 	source "./console.sh"
-	[ "${#__loaded_modules[@]}" -eq 2 ]
+	[ "${#__loaded_modules[@]}" -eq 3 ]
 
 	# 使用仅文件名再次加载（应该被阻止）
 	source "console.sh"
-	[ "${#__loaded_modules[@]}" -eq 2 ]
+	[ "${#__loaded_modules[@]}" -eq 3 ]
 
 	[ "$(type -t console.stderr)" = "function" ]
 }
@@ -56,12 +56,12 @@ teardown() {
 	cd "$PROJECT_ROOT"
 
 	source "std/console.sh"
-	[ "${#__loaded_modules[@]}" -eq 2 ]
+	[ "${#__loaded_modules[@]}" -eq 3 ]
 
 	# 切换到std目录，使用不同相对路径加载（应该被阻止）
 	cd "$PROJECT_ROOT/std"
 	source "./console.sh"
-	[ "${#__loaded_modules[@]}" -eq 2 ]
+	[ "${#__loaded_modules[@]}" -eq 3 ]
 }
 
 @test "console.sh - 绝对路径与相对路径混合" {
@@ -74,8 +74,8 @@ teardown() {
 	source "./console.sh"
 	local count2="${#__loaded_modules[@]}"
 
-	[ "$count1" -eq 2 ]
-	[ "$count2" -eq 2 ]
+	[ "$count1" -eq 3 ]
+	[ "$count2" -eq 3 ]
 }
 
 @test "错误处理 - 空字符串参数" {
@@ -101,14 +101,14 @@ teardown() {
 	[ "${#__loaded_modules[@]}" -eq 1 ]
 
 	# 在__loaded_modules中添加一个测试条目
-	__loaded_modules["/test/path"]=1
+	__loaded_modules+=("/test/path")
 	[ "${#__loaded_modules[@]}" -eq 2 ]
 
 	# 再次source，应该被第3行阻止，不会重新初始化
 	source "$LOAD_SH_PATH"
 	# 验证测试条目仍然存在（证明没有重新初始化）
 	[ "${#__loaded_modules[@]}" -eq 2 ]
-	[ -n "${__loaded_modules[/test/path]+x}" ]
+	[[ " ${__loaded_modules[*]} " == *" /test/path "* ]]
 }
 
 @test "import.sh自身 - 多次source不重复初始化（相对路径）" {
@@ -118,14 +118,14 @@ teardown() {
 	[ "${#__loaded_modules[@]}" -eq 1 ]
 
 	# 在__loaded_modules中添加一个测试条目
-	__loaded_modules["/test/path2"]=1
+	__loaded_modules+=("/test/path2")
 	[ "${#__loaded_modules[@]}" -eq 2 ]
 
 	# 再次source，应该被第3行阻止，不会重新初始化
 	source "./import.sh"
 	# 验证测试条目仍然存在（证明没有重新初始化）
 	[ "${#__loaded_modules[@]}" -eq 2 ]
-	[ -n "${__loaded_modules[/test/path2]+x}" ]
+	[[ " ${__loaded_modules[*]} " == *" /test/path2 "* ]]
 }
 
 @test "import.sh与console.sh - 不同模块可正常加载" {
@@ -138,7 +138,7 @@ teardown() {
 	local count2="${#__loaded_modules[@]}"
 
 	[ "$count1" -eq 1 ]
-	[ "$count2" -eq 2 ]
+	[ "$count2" -eq 3 ]
 }
 
 @test "console.sh - 不同工作目录下的相对路径" {
@@ -153,8 +153,8 @@ teardown() {
 	source "./console.sh"
 	local count2="${#__loaded_modules[@]}"
 
-	[ "$count1" -eq 2 ]
-	[ "$count2" -eq 2 ]
+	[ "$count1" -eq 3 ]
+	[ "$count2" -eq 3 ]
 }
 
 @test "多级相对路径 - ../../格式加载" {
@@ -208,8 +208,8 @@ EOF
 	import "std/console.sh"
 	local count2="${#__loaded_modules[@]}"
 
-	[ "$count1" -eq 2 ]
-	[ "$count2" -eq 2 ]
+	[ "$count1" -eq 3 ]
+	[ "$count2" -eq 3 ]
 }
 
 @test "import - 绝对路径不受影响" {
@@ -220,7 +220,7 @@ EOF
 	[ "$(type -t console.stderr)" = "function" ]
 
 	# 验证已加载
-	[ "$count1" -eq 2 ]
+	[ "$count1" -eq 3 ]
 }
 
 @test "import - 错误处理" {
