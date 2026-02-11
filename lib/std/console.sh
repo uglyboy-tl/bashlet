@@ -4,6 +4,17 @@ import std/string
 
 console.stdout() { printf "%s\n" "$*"; }
 
+console.repeat() {
+  local -a line
+  local i=1
+  while true; do
+    [[ $i -gt ${2:-0} ]] && break
+    line+=("$1")
+    i=$((i + 1))
+  done
+  printf "%s" "${line[@]}"
+}
+
 console.stderr() { printf "%s\n" "$*" >&2; }
 
 console.align() {
@@ -44,4 +55,3 @@ console.display_width() {
 	! string.is_ascii "$1" && console.mixed_width "$1" && return
 	string.has_ansi "$1" && console.ansi_width "$1" || echo "${#1}"
 }
-
