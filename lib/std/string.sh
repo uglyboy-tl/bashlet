@@ -20,3 +20,7 @@ string.int.check() { [[ "$1" =~ ^-?[0-9]+$ ]]; }
 string.natural.check() { [[ "$1" =~ ^[1-9][0-9]*$ ]]; }
 
 string.float.check() { [[ "$1" =~ ^-?[0-9]+\.[0-9]+$ ]]; }
+
+string.is_ascii() { [[ $1 != *[![:ascii:]]* ]]; }
+
+string.has_ansi() { [[ $1 == *$'\x1b'* ]]; }

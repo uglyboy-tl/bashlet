@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 
+import std/string
+
+console.stdout() { printf "%s\n" "$*"; }
+
 console.stderr() { printf "%s\n" "$*" >&2; }
 
 console.align() {
 	local padding=$(( $1 - $(console.display_width "$2") ))
 	(( padding > 0 )) && printf "%s%${padding}s%s\n" "$2" "" "${*:3}" || printf "%s%s\n" "$2" "${*:3}"
 } >&2
-
-console.is_ascii() { [[ $1 != *[![:ascii:]]* ]]; }
-
-console.has_ansi() { [[ $1 == *$'\x1b'* ]]; }
 
 console.ansi_width() {
 	local width=0 i=0 len=${#1} flag=0
@@ -41,7 +41,7 @@ console.mixed_width() {
 
 console.display_width() {
 	[[ $1 ]] || { echo "0"; return; }
-	! console.is_ascii "$1" && console.mixed_width "$1" && return
-	console.has_ansi "$1" && console.ansi_width "$1" || echo "${#1}"
+	! string.is_ascii "$1" && console.mixed_width "$1" && return
+	string.has_ansi "$1" && console.ansi_width "$1" || echo "${#1}"
 }
 
