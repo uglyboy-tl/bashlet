@@ -38,9 +38,9 @@ requests.jq.check() {
 
 requests.curl.configure() {
 	local array_name="$1"
-	local no_timeout="${2:-}"
+	local timeout="${2:-}"
 
-	[[ -n "$no_timeout" ]] || array.append "$array_name" "--max-time" "$_REQUESTS_TIMEOUT"
+	[[ -n "$timeout" ]] && array.append "$array_name" "--max-time" "$timeout"
 	array.append "$array_name" "-A" "$_REQUESTS_USER_AGENT"
 
 	local key
@@ -65,7 +65,7 @@ requests.request.build() {
 
 	cmd_ref=("$_REQUESTS_CURL" "-s" "--compressed" "-X" "$method")
 
-	requests.curl.configure cmd_ref
+	requests.curl.configure cmd_ref "$_REQUESTS_TIMEOUT"
 
 	if [[ -n "$body" ]]; then
 		cmd_ref+=("-d" "$body")
@@ -114,7 +114,7 @@ requests.request() {
 requests.download() {
 	requests.curl.check
 	local curl_cmd=("$_REQUESTS_CURL" "-L")
-	requests.curl.configure curl_cmd "no"
+	requests.curl.configure curl_cmd
 	curl_cmd+=("-o" "$2")
 
 	# 是否显示进度

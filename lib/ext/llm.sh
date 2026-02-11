@@ -9,6 +9,7 @@ import core/log
 
 llm.init() {
 	requests.init
+	requests.timeout 60
 	log.debug "llm module initialized: model=$_LLM_MODEL"
 }
 
@@ -16,7 +17,7 @@ llm.api_key() { OPENAI_API_KEY="$1"; }
 llm.base_url() { OPENAI_BASE_URL="$1"; }
 llm.model() { _LLM_MODEL="$1"; }
 
-llm.chat() {
+llm.chat.stream() {
 	local model="$1"
 	local messages="$2"
 	local callback="${3:-llm._default_callback}"
@@ -47,13 +48,13 @@ llm._sse_callback() {
 	[[ -n "$content" ]] && printf "%s" "$content" || true
 }
 
-llm.chat.stream() {
+llm.chat() {
 	local text="$1"
 	[[ -n "$text" ]] || { log.error "Missing prompt text" && return 1; }
 
 	local messages
 	messages=$(jq -n --arg text "$text" '[{"role": "user", "content": $text}]')
 
-	llm.chat "$_LLM_MODEL" "$messages" "llm._sse_callback"
+	llm.chat.stream "$_LLM_MODEL" "$messages" "llm._sse_callback"
 	echo
 }
