@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+[[ $(( BASH_VERSINFO[0] * 100 + BASH_VERSINFO[1] )) -lt 403 ]] && { echo "需 Bash 4.3+ 当前 ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}" >&2; exit 1; } || true
+
 readonly _LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")"/../ && pwd)"
 
 declare -p __loaded_modules &>/dev/null 2>&1 && return 0
@@ -24,4 +26,4 @@ import() {
 	done
 }
 
-.env(){ [[ -f .env ]] && source .env; }
+.env() { [[ -f .env ]] && source .env || true; }
