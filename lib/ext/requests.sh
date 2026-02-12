@@ -264,7 +264,7 @@ requests.headers.append() {
 requests.base_url() { _REQUESTS_BASE_URL="$1"; }
 
 # 清空默认请求头
-requests.headers_clear() { _REQUESTS_HEADERS=(); }
+requests.headers.clear() { _REQUESTS_HEADERS=(); }
 
 # 设置 Basic Auth (用户名 密码)
 requests.auth() { _REQUESTS_AUTH["Authorization"]="Basic $(jq -nr --arg c "$1:$2" '$c | @base64')"; }

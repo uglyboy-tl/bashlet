@@ -299,14 +299,14 @@ requests.reset() {
     [ $? -eq 0 ]
 }
 
-@test "requests.headers_clear() 清空请求头" {
+@test "requests.headers.clear() 清空请求头" {
     requests.init
 
     # 先设置一些请求头 - 使用 || true 防止 set -e 导致测试失败
     requests.headers.append "X-Test-Header" "TestValue" || true
 
     # 清空请求头
-    requests.headers_clear
+    requests.headers.clear
 
     response=$(requests.get "https://httpbin.org/headers")
     body_text=$(requests.text "$response")
