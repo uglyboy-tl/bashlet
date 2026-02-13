@@ -148,8 +148,8 @@ ansi.disable.powerline() {
 }
 
 ansi.enable() {
-	[[ -n "${BASHLET_ANSI_FORCE_DISABLE-}" ]] && return 0
-	ansi.Color.IsAvailable && ansi.enable.color && ansi.enable.style || (ansi.disable.color && ansi.disable.style)
+	[[ -n "${_ANSI_FORCE_DISABLE-}" ]] && ansi.disable && return 0
+	ansi.Color.IsAvailable && ansi.enable.color && ansi.enable.style || { ansi.disable.color && ansi.disable.style; }
 	ansi.Powerline.IsAvailable && ansi.enable.powerline || ansi.disable.powerline
 }
 
