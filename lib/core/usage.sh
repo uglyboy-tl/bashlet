@@ -5,7 +5,7 @@ import std/console
 import std/map
 
 _USAGE_SCRIPT_FILENAME=${0##*/}
-: ${_USAGE_SCRIPT_NAME:=$_USAGE_SCRIPT_FILENAME}
+_USAGE_SCRIPT_NAME=${SCRIPT_NAME:-$_USAGE_SCRIPT_FILENAME}
 _USAGE_SCRIPT_DESC=""
 
 usage.name.set() { _USAGE_SCRIPT_NAME="$1"; }
