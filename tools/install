@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-VERSION="0.4.1"
 
 set -euo pipefail
-
+SCRIPT_NAME="开发环境配置"
+VERSION="0.4.2"
 CURRENT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SUBMODULE_DIR="$(dirname "$CURRENT_PATH")"
 SUBMODULE_NAME="$(basename "$SUBMODULE_DIR")"
