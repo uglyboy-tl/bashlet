@@ -15,8 +15,8 @@ declare -g _REQUESTS_CURL=""
 declare -g _REQUESTS_JQ=""
 
 requests.init() {
-	! system.command.exist "curl" && log.error "This module required \`curl\` command." && exit 1 || _REQUESTS_CURL="$(command -v curl)"
-	! system.command.exist "jq" && log.error "This module required \`jq\` command." && exit 1 || _REQUESTS_JQ="$(command -v jq)"
+	system.command.required "curl" && _REQUESTS_CURL="$(command -v curl)"
+	system.command.required "jq" && _REQUESTS_JQ="$(command -v jq)"
 
 	_REQUESTS_HEADERS=(
 		["Accept"]="*/*"

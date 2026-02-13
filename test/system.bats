@@ -7,7 +7,6 @@ setup() {
 	import std/system
 	import core/log
 	log.setLevel INFO  # 屏蔽 log.error 输出
-	unset _SYSTEM_OS _SYSTEM_ARCH 2>/dev/null || true
 }
 
 teardown() {
@@ -70,17 +69,15 @@ teardown() {
 }
 
 @test "system.os - 缓存变量 _SYSTEM_OS 需要手动初始化" {
-	system.os.init
 	[[ -n "$_SYSTEM_OS" ]]
 }
 
-@test "system.os - 未初始化时缓存变量为空" {
+@test "system.os - 加载即初始化" {
 	result=$(system.os)
-	[[ -z "$_SYSTEM_OS" ]]
+	[[ -n "$_SYSTEM_OS" ]]
 }
 
 @test "system.os - 初始化后多次调用使用缓存" {
-	system.os.init
 	result1=$(system.os)
 	result2=$(system.os)
 	[ "$_SYSTEM_OS" = "$result1" ]
@@ -99,32 +96,6 @@ teardown() {
 	[ "$result" = "custom_arch" ]
 }
 
-# ============ system.os.init 测试 ============
-
-@test "system.os.init - 设置 _SYSTEM_OS 变量" {
-	system.os.init
-	[[ -n "$_SYSTEM_OS" ]]
-}
-
-@test "system.os.init - 设置的值与 system.os 一致" {
-	system.os.init
-	result=$(system.os)
-	[ "$_SYSTEM_OS" = "$result" ]
-}
-
-# ============ system.arch.init 测试 ============
-
-@test "system.arch.init - 设置 _SYSTEM_ARCH 变量" {
-	system.arch.init
-	[[ -n "$_SYSTEM_ARCH" ]]
-}
-
-@test "system.arch.init - 设置的值与 system.arch 一致" {
-	system.arch.init
-	result=$(system.arch)
-	[ "$_SYSTEM_ARCH" = "$result" ]
-}
-
 # ============ 集成测试 ============
 
 @test "集成测试 - system.os 和 system.arch 返回有效值" {
@@ -134,8 +105,6 @@ teardown() {
 }
 
 @test "集成测试 - 初始化后缓存正常工作" {
-	system.os.init
-	system.arch.init
 	os_result=$(system.os)
 	arch_result=$(system.arch)
 	[ "$_SYSTEM_OS" = "$os_result" ]
@@ -190,8 +159,8 @@ teardown() {
 	[[ "$(system.arch)" == "custom_arch" ]]
 }
 
-@test "teardown 后缓存被清除" {
+@test "teardown 后缓存重建" {
 	# 这个测试验证 setup 正常工作
-	[[ -z "$_SYSTEM_OS" ]]
-	[[ -z "$_SYSTEM_ARCH" ]]
+	[[ -n "$_SYSTEM_OS" ]]
+	[[ -n "$_SYSTEM_ARCH" ]]
 }

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 system.command.exist() { command -v "$1" >/dev/null 2>&1; }
+system.command.required() { ! system.command.exist "$1" && log.error "This module required \`$1\` command." && exit 1 || return 0; }
 
 system.os() {
   [[ ! -z ${_SYSTEM_OS+x} ]] && echo "$_SYSTEM_OS" && return 0
@@ -12,8 +13,8 @@ system.os() {
     solaris*) echo "solaris" ;;
     *)  echo"unknown" ;;
   esac
-  log.debug "OS: $OSTYPE"
 }
+_SYSTEM_OS="$(system.os)"
 
 system.arch() {
   [[ ! -z ${_SYSTEM_ARCH+x} ]] && echo "$_SYSTEM_ARCH" && return 0
@@ -24,8 +25,5 @@ system.arch() {
     armv7l|armhf)     echo "armhf" ;;
     i686|i386|i586)   echo "i386" ;;
   esac
-  log.debug "Arch: $arch"
 }
-
-system.os.init() { _SYSTEM_OS="$(system.os)"; }
-system.arch.init() { _SYSTEM_ARCH="$(system.arch)"; }
+_SYSTEM_ARCH="$(system.arch)"
