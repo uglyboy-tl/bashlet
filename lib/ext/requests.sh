@@ -15,6 +15,8 @@ declare -g _REQUESTS_CURL=""
 declare -g _REQUESTS_JQ=""
 
 requests.init() {
+	declare -ga _REQUESTS_CURL_EXTRA=("$@")
+
 	system.command.required "curl" && _REQUESTS_CURL="$(command -v curl)"
 	system.command.required "jq" && _REQUESTS_JQ="$(command -v jq)"
 
@@ -64,6 +66,7 @@ requests.request.build() {
 	local -r content_type="${5:-$(requests.content_type.detect "$4")}"
 
 	cmd_ref=("$_REQUESTS_CURL" "-s" "--compressed" "-X" "$method")
+	cmd_ref+=("${_REQUESTS_CURL_EXTRA[@]}")
 
 	requests.curl.configure cmd_ref "$_REQUESTS_TIMEOUT"
 
@@ -240,7 +243,7 @@ requests.success() { "$_REQUESTS_JQ" -r '.success' <<<"$1"; }
 requests.raise_for_status() { [[ "$(requests.success "${1:-}")" == "true" ]] || { log.error "HTTP error: status code $(requests.status_code "${1:-}")" && return 1; }; }
 
 # 设置超时时间 (秒)
-requests.timeout() { string.natural.check "$1" && _REQUESTS_TIMEOUT="$1" || { log.error "timeout must be a positive integer" && return 1; } ;}
+requests.timeout() { string.natural.check "$1" && _REQUESTS_TIMEOUT="$1" || { log.error "timeout must be a positive integer" && return 1; }; }
 
 # 设置默认请求头 (可变参数: key1 value1 key2 value2 ...)
 requests.headers.append() {
