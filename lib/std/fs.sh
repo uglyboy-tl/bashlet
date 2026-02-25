@@ -40,6 +40,6 @@ fs.file.extract() {
 	*.gz) gzip -dc "$path" >"${base%.gz}" ;;
 	*.bz2) bzip2 -dc "$path" >"${base%.bz2}" ;;
 	*.xz) xz -dc "$path" >"${base%.xz}" ;;
-	*) cp "$path" "./" ;;
+	*) chmod +x "$path";cp "$path" "${base%%.*}" ;;
 	esac
 }
