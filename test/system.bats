@@ -122,6 +122,52 @@ teardown() {
 	[[ -n "$os" && -n "$arch" ]]
 }
 
+# ============ system.command.result 测试 ============
+
+@test "system.command.result - 执行简单命令返回结果" {
+	result=$(system.command.result "echo hello")
+	[ "$result" = "hello" ]
+}
+
+@test "system.command.result - 执行多行输出命令" {
+	result=$(system.command.result "printf 'line1\nline2'")
+	[ "$result" = "line1
+line2" ]
+}
+
+@test "system.command.result - 空命令返回提示" {
+	result=$(system.command.result "true")
+	[ "$result" = "（无输出）" ]
+}
+
+@test "system.command.result - grep 无匹配返回空字符串" {
+	result=$(system.command.result "echo 'hello world' | grep 'xyz'")
+	# grep 无匹配时 result 为空，最后被替换为 "（无输出）"
+	[ -z "$result" ] || [ "$result" = "（无输出）" ]
+}
+
+@test "system.command.result - grep 有匹配返回结果" {
+	result=$(system.command.result "echo 'hello world' | grep 'hello'")
+	[ "$result" = "hello world" ]
+}
+
+@test "system.command.result - 命令执行失败返回错误提示" {
+	result=$(system.command.result "ls /nonexistent_directory_xyz_123")
+	[[ "$result" == "（命令执行失败，退出码:"* ]]
+}
+
+@test "system.command.result - 复杂命令执行" {
+	result=$(system.command.result "echo test | tr '[:lower:]' '[:upper:]'")
+	[ "$result" = "TEST" ]
+}
+
+# ============ system.command.required 测试 ============
+
+@test "system.command.required - 存在命令返回成功" {
+	run system.command.required "bash"
+	[ "$status" -eq 0 ]
+}
+
 # ============ 边界条件测试 ============
 
 @test "system.command.exist - 命令名带特殊字符返回失败" {

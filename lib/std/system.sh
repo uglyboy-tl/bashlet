@@ -3,6 +3,24 @@
 system.command.exist() { command -v "$1" >/dev/null 2>&1; }
 system.command.required() { ! system.command.exist "$1" && log.error "This module required \`$1\` command." && exit 1 || return 0; }
 
+system.command.result() {
+  local result
+	result=$(eval "$1" 2>&1) || {
+		# 检查是否是 grep 无匹配（退出码 1）
+		local exit_code=$?
+		if [[ $exit_code -eq 1 ]] && [[ "$1" == *grep* ]]; then
+			result=""
+		else
+			result="（命令执行失败，退出码: $exit_code）"
+		fi
+	}
+
+	# 如果结果为空，显示提示
+	[[ -z "$result" ]] && result="（无输出）"
+
+	echo "$result"
+}
+
 system.os() {
   [[ ! -z ${_SYSTEM_OS+x} ]] && echo "$_SYSTEM_OS" && return 0
   case "$OSTYPE" in
