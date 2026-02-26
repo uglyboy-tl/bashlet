@@ -44,6 +44,48 @@ requests.reset() {
     # log.debug 输出可能到 stderr，检查命令是否成功执行即可
 }
 
+@test "requests.init() 接受额外 curl 参数" {
+    # 使用 --connect-timeout 作为额外参数
+    run requests.init --connect-timeout 30
+    [ "$status" -eq 0 ]
+}
+
+@test "requests.init() 传递多个额外 curl 参数" {
+    # 传递多个额外参数
+    run requests.init --connect-timeout 30 --max-redirs 10 --retry 3
+    [ "$status" -eq 0 ]
+}
+
+@test "requests.init() 额外参数生效 - 设置连接超时" {
+    # 初始化并设置连接超时
+    requests.init --connect-timeout 5
+
+    # 正常请求应该成功
+    response=$(requests.get "https://httpbin.org/get")
+    status_code=$(requests.status_code "$response")
+    [ "$status_code" -eq 200 ]
+}
+
+@test "requests.init() 额外参数生效 - 跟随重定向" {
+    # 使用 -L 参数启用重定向跟随
+    requests.init -L
+
+    # 请求会重定向的 URL
+    response=$(requests.get "https://httpbin.org/redirect/1")
+    status_code=$(requests.status_code "$response")
+    [ "$status_code" -eq 200 ]
+}
+
+@test "requests.init() 额外参数生效 - 限制重定向次数" {
+    # 设置最大重定向次数为 2
+    requests.init -L --max-redirs 2
+
+    # 请求 2 次重定向应该成功
+    response=$(requests.get "https://httpbin.org/absolute-redirect/2")
+    status_code=$(requests.status_code "$response")
+    [ "$status_code" -eq 200 ]
+}
+
 # ============ HTTP 方法测试 ============
 
 @test "requests.get() 返回正确响应" {
@@ -591,5 +633,54 @@ requests.reset() {
     [ "$status" -ne 0 ]
 
     rm -f "$temp_output"
+}
+
+# ============ curl 额外参数测试 ============
+
+@test "requests.init() 传递额外 curl 参数" {
+    # 使用 --connect-timeout 作为额外参数
+    requests.init --connect-timeout 10
+
+    # 验证 _REQUESTS_CURL_EXTRA 被正确设置
+    [ "${_REQUESTS_CURL_EXTRA[0]}" = "--connect-timeout" ]
+    [ "${_REQUESTS_CURL_EXTRA[1]}" = "10" ]
+}
+
+@test "requests.init() 传递多个 curl 额外参数" {
+    # 传递多个额外参数
+    requests.init --connect-timeout 10 --max-redirs 5 --location
+
+    # 验证所有参数都被正确保存
+    [ "${_REQUESTS_CURL_EXTRA[0]}" = "--connect-timeout" ]
+    [ "${_REQUESTS_CURL_EXTRA[1]}" = "10" ]
+    [ "${_REQUESTS_CURL_EXTRA[2]}" = "--max-redirs" ]
+    [ "${_REQUESTS_CURL_EXTRA[3]}" = "5" ]
+    [ "${_REQUESTS_CURL_EXTRA[4]}" = "--location" ]
+}
+
+@test "requests.init() 无额外参数时 _REQUESTS_CURL_EXTRA 为空" {
+    requests.init
+
+    # 验证数组为空
+    [ ${#_REQUESTS_CURL_EXTRA[@]} -eq 0 ]
+}
+
+@test "requests.request.build() 包含额外 curl 参数" {
+    requests.init --connect-timeout 60
+
+    local curl_cmd
+    requests.request.build curl_cmd "GET" "https://httpbin.org/get" "" ""
+
+    # 验证额外参数在命令中
+    [[ " ${curl_cmd[*]} " == *" --connect-timeout 60 "* ]]
+}
+
+@test "requests.get() 使用额外 curl 参数生效" {
+    # 使用 --max-time 参数限制请求时间
+    requests.init --max-time 30
+
+    response=$(requests.get "https://httpbin.org/get")
+    status_code=$(requests.status_code "$response")
+    [ "$status_code" -eq 200 ]
 }
 
