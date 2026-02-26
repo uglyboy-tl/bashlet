@@ -8,6 +8,7 @@ fs.dir.exists() { [[ -d "$1" ]]; }
 
 fs.write() {
 	local _f="$1"
+	mkdir -p $(dirname "$1")
 	shift
 	(($# > 0)) && printf "%s\n" "$@" >"$_f" || : >"$_f"
 }
@@ -25,7 +26,7 @@ fs.rmline() { [[ -n "$4" ]] && sed -i "${4},/$2/{/$2/d}" "$1" 2>/dev/null || sed
 
 fs.cleanup() { ls -t ${1}* 2>/dev/null | tail -n +$((${2:-3} + 1)) | xargs -r rm -f; } # 保留最新的 n 个文件 (默认 3 个)
 
-fs.mktemp() { mktemp ${1:-} 2>/dev/null || { log.error "Failed to create temporary file" && return 1; }; }
+fs.mktemp() { mktemp "$@" 2>/dev/null || { log.error "Failed to create temporary file" && return 1; }; }
 
 fs.file.extract() {
 	local path=$(realpath "$1") base=$(basename "$1")
@@ -40,6 +41,9 @@ fs.file.extract() {
 	*.gz) gzip -dc "$path" >"${base%.gz}" ;;
 	*.bz2) bzip2 -dc "$path" >"${base%.bz2}" ;;
 	*.xz) xz -dc "$path" >"${base%.xz}" ;;
-	*) chmod +x "$path";cp "$path" "${base%%.*}" ;;
+	*)
+		chmod +x "$path"
+		cp "$path" "${base%%.*}"
+		;;
 	esac
 }

@@ -123,11 +123,39 @@ teardown() {
 	rm -f "$test_file"
 }
 
-@test "fs.write - 目标目录不存在时失败" {
-	local test_file="/tmp/nonexistent_dir_$$/test.txt"
+@test "fs.write - 目标目录不存在时自动创建" {
+	local test_file="/tmp/nonexistent_dir_$$/subdir/test.txt"
 	run fs.write "$test_file" "内容"
-	[ "$status" -ne 0 ]
-	[ ! -f "$test_file" ]
+	[ "$status" -eq 0 ]
+	[ -f "$test_file" ]
+	[ "$(cat "$test_file")" = "内容" ]
+	
+	# 清理
+	rm -rf "/tmp/nonexistent_dir_$$"
+}
+
+@test "fs.write - 多级嵌套目录自动创建" {
+	local test_file="/tmp/a_$$/b/c/d/e/f/test.txt"
+	run fs.write "$test_file" "nested content"
+	[ "$status" -eq 0 ]
+	[ -f "$test_file" ]
+	[ "$(cat "$test_file")" = "nested content" ]
+	
+	# 清理
+	rm -rf "/tmp/a_$$"
+}
+
+@test "fs.write - 父目录已存在也能正常写入" {
+	mkdir -p "/tmp/existing_dir_$$"
+	local test_file="/tmp/existing_dir_$$/test.txt"
+	
+	run fs.write "$test_file" "existing dir content"
+	[ "$status" -eq 0 ]
+	[ -f "$test_file" ]
+	[ "$(cat "$test_file")" = "existing dir content" ]
+	
+	# 清理
+	rm -rf "/tmp/existing_dir_$$"
 }
 
 @test "fs.write - 无写入权限时失败" {
@@ -832,4 +860,245 @@ teardown() {
 	[ "$count" -eq 2 ]
 
 	rm -f /tmp/cleanup-few-*.bak 2>/dev/null
+}
+
+# ============ fs.file.extract 测试 ============
+
+@test "fs.file.extract - 解压 tar.gz 文件" {
+	local temp_dir=$(mktemp -d)
+	local test_file="$temp_dir/test.txt"
+	echo "test content" > "$test_file"
+	
+	# 创建 tar.gz
+	tar -czf "$temp_dir/archive.tar.gz" -C "$temp_dir" test.txt
+	rm -f "$test_file"
+	
+	# 解压
+	fs.file.extract "$temp_dir/archive.tar.gz" "$temp_dir"
+	
+	# 验证
+	[ -f "$test_file" ]
+	[ "$(cat "$test_file")" = "test content" ]
+	
+	rm -rf "$temp_dir"
+}
+
+@test "fs.file.extract - 解压 tar.bz2 文件" {
+	local temp_dir=$(mktemp -d)
+	local test_file="$temp_dir/test.txt"
+	echo "bz2 content" > "$test_file"
+	
+	tar -cjf "$temp_dir/archive.tar.bz2" -C "$temp_dir" test.txt
+	rm -f "$test_file"
+	
+	fs.file.extract "$temp_dir/archive.tar.bz2" "$temp_dir"
+	
+	[ -f "$test_file" ]
+	[ "$(cat "$test_file")" = "bz2 content" ]
+	
+	rm -rf "$temp_dir"
+}
+
+@test "fs.file.extract - 解压 tar.xz 文件" {
+	local temp_dir=$(mktemp -d)
+	local test_file="$temp_dir/test.txt"
+	echo "xz content" > "$test_file"
+	
+	tar -cJf "$temp_dir/archive.tar.xz" -C "$temp_dir" test.txt
+	rm -f "$test_file"
+	
+	fs.file.extract "$temp_dir/archive.tar.xz" "$temp_dir"
+	
+	[ -f "$test_file" ]
+	[ "$(cat "$test_file")" = "xz content" ]
+	
+	rm -rf "$temp_dir"
+}
+
+@test "fs.file.extract - 解压普通 tar 文件" {
+	local temp_dir=$(mktemp -d)
+	local test_file="$temp_dir/test.txt"
+	echo "tar content" > "$test_file"
+	
+	tar -cf "$temp_dir/archive.tar" -C "$temp_dir" test.txt
+	rm -f "$test_file"
+	
+	fs.file.extract "$temp_dir/archive.tar" "$temp_dir"
+	
+	[ -f "$test_file" ]
+	[ "$(cat "$test_file")" = "tar content" ]
+	
+	rm -rf "$temp_dir"
+}
+
+@test "fs.file.extract - 解压 zip 文件" {
+	# 检查是否安装了 zip 命令
+	command -v zip >/dev/null 2>&1 || skip "zip 命令未安装"
+	
+	local temp_dir=$(mktemp -d)
+	local test_file="$temp_dir/test.txt"
+	echo "zip content" > "$test_file"
+	
+	# 创建 zip
+	(cd "$temp_dir" && zip -q archive.zip test.txt)
+	rm -f "$test_file"
+	
+	fs.file.extract "$temp_dir/archive.zip" "$temp_dir"
+	
+	[ -f "$test_file" ]
+	[ "$(cat "$test_file")" = "zip content" ]
+	
+	rm -rf "$temp_dir"
+}
+
+@test "fs.file.extract - 解压 gz 文件" {
+	local temp_dir=$(mktemp -d)
+	local test_file="$temp_dir/test.txt"
+	echo "gz content" > "$test_file"
+	
+	gzip -c "$test_file" > "$temp_dir/test.txt.gz"
+	rm -f "$test_file"
+	
+	fs.file.extract "$temp_dir/test.txt.gz" "$temp_dir"
+	
+	[ -f "$test_file" ]
+	[ "$(cat "$test_file")" = "gz content" ]
+	
+	rm -rf "$temp_dir"
+}
+
+@test "fs.file.extract - 解压 bz2 文件" {
+	local temp_dir=$(mktemp -d)
+	local test_file="$temp_dir/test.txt"
+	echo "bz2 single" > "$test_file"
+	
+	bzip2 -c "$test_file" > "$temp_dir/test.txt.bz2"
+	rm -f "$test_file"
+	
+	fs.file.extract "$temp_dir/test.txt.bz2" "$temp_dir"
+	
+	[ -f "$test_file" ]
+	[ "$(cat "$test_file")" = "bz2 single" ]
+	
+	rm -rf "$temp_dir"
+}
+
+@test "fs.file.extract - 解压 xz 文件" {
+	local temp_dir=$(mktemp -d)
+	local test_file="$temp_dir/test.txt"
+	echo "xz single" > "$test_file"
+	
+	xz -c "$test_file" > "$temp_dir/test.txt.xz"
+	rm -f "$test_file"
+	
+	fs.file.extract "$temp_dir/test.txt.xz" "$temp_dir"
+	
+	[ -f "$test_file" ]
+	[ "$(cat "$test_file")" = "xz single" ]
+	
+	rm -rf "$temp_dir"
+}
+
+@test "fs.file.extract - 未知类型复制并添加执行权限" {
+	local temp_dir=$(mktemp -d)
+	local test_file="$temp_dir/myscript.sh"
+	echo '#!/bin/bash
+echo "hello"' > "$test_file"
+	chmod 644 "$test_file"
+	
+	fs.file.extract "$test_file" "$temp_dir"
+	
+	# 验证复制后的文件存在且有执行权限
+	[ -f "$temp_dir/myscript" ]
+	[ -x "$temp_dir/myscript" ]
+	[ "$(cat "$temp_dir/myscript")" = "$(cat "$test_file")" ]
+	
+	rm -rf "$temp_dir"
+}
+
+@test "fs.file.extract - jar 文件使用 unzip" {
+	command -v zip &>/dev/null || skip "zip 命令未安装"
+	command -v unzip &>/dev/null || skip "unzip 命令未安装"
+	
+	local temp_dir=$(mktemp -d)
+	local test_file="$temp_dir/test.txt"
+	echo "jar content" > "$test_file"
+	
+	(cd "$temp_dir" && zip -q test.jar test.txt)
+	rm -f "$test_file"
+	
+	fs.file.extract "$temp_dir/test.jar" "$temp_dir"
+	
+	[ -f "$test_file" ]
+	[ "$(cat "$test_file")" = "jar content" ]
+	
+	rm -rf "$temp_dir"
+}
+
+# ============ fs.mktemp 测试 ============
+
+@test "fs.mktemp - 创建临时文件（无参数）" {
+	local temp_file=$(fs.mktemp)
+	[ -n "$temp_file" ]
+	[ -f "$temp_file" ]
+
+	# 清理
+	rm -f "$temp_file"
+}
+
+@test "fs.mktemp - 创建临时文件（带模板）" {
+	local temp_file=$(fs.mktemp "/tmp/test_fs_mktemp_XXXXXX")
+	[ -n "$temp_file" ]
+	[ -f "$temp_file" ]
+	# 验证文件名包含模板前缀
+	[[ "$temp_file" == /tmp/test_fs_mktemp_* ]]
+
+	# 清理
+	rm -f "$temp_file"
+}
+
+@test "fs.mktemp - 创建临时目录（带 -d 参数）" {
+	local temp_dir=$(fs.mktemp -d)
+	[ -n "$temp_dir" ]
+	[ -d "$temp_dir" ]
+
+	# 清理
+	rm -rf "$temp_dir"
+}
+
+@test "fs.mktemp - 创建临时目录（带模板和 -d 参数）" {
+	local temp_dir=$(fs.mktemp -d "/tmp/test_fs_mktemp_dir_XXXXXX")
+	[ -n "$temp_dir" ]
+	[ -d "$temp_dir" ]
+	[[ "$temp_dir" == /tmp/test_fs_mktemp_dir_* ]]
+
+	# 清理
+	rm -rf "$temp_dir"
+}
+
+@test "fs.mktemp - 返回的文件可写入" {
+	local temp_file=$(fs.mktemp)
+
+	# 写入内容
+	echo "test content" > "$temp_file"
+	[ $? -eq 0 ]
+
+	# 验证内容
+	local content=$(cat "$temp_file")
+	[ "$content" = "test content" ]
+
+	# 清理
+	rm -f "$temp_file"
+}
+
+@test "fs.mktemp - 每次调用创建不同文件" {
+	local temp_file1=$(fs.mktemp)
+	local temp_file2=$(fs.mktemp)
+
+	[ "$temp_file1" != "$temp_file2" ]
+	[ -f "$temp_file1" ]
+	[ -f "$temp_file2" ]
+
+	# 清理
+	rm -f "$temp_file1" "$temp_file2"
 }
