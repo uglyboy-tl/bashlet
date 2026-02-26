@@ -407,3 +407,203 @@ line2"
 	# text(4) + padding(21空格) + desc1(14) + 空格(1) + desc2(14) = 54 字符
 	[ "${#output}" -eq 54 ]
 }
+
+# ========== console.indent 测试 ==========
+
+@test "console.indent - 基本缩进输出" {
+	run console.indent 1 "test message"
+	[ "$status" -eq 0 ]
+	# 缩进级别 1 = 2 个空格 + text(12) = 14 (输出到 stderr)
+	[ "${#output}" -eq 14 ]
+	[[ "$output" == "  test message" ]]
+}
+
+@test "console.indent - 多级缩进" {
+	run console.indent 2 "level 2"
+	[ "$status" -eq 0 ]
+	# 缩进级别 2 = 4 个空格
+	[[ "$output" == "    level 2" ]]
+}
+
+@test "console.indent - 零级缩进" {
+	run console.indent 0 "no indent"
+	[ "$status" -eq 0 ]
+	# 缩进级别 0 = 0 个空格
+	[ "$output" = "no indent" ]
+}
+
+@test "console.indent - 多个参数" {
+	run console.indent 1 "hello" "world"
+	[ "$status" -eq 0 ]
+	[[ "$output" == "  hello world" ]]
+}
+
+@test "console.indent - 空内容" {
+	run console.indent 1 ""
+	[ "$status" -eq 0 ]
+	# 2 空格 + 空 = 2
+	[ "${#output}" -eq 2 ]
+}
+
+@test "console.indent - 中文内容" {
+	run console.indent 1 "中文测试"
+	[ "$status" -eq 0 ]
+	# 2 空格 + 4 个中文字符 = 6
+	[ "${#output}" -eq 6 ]
+}
+
+@test "console.indent - 带 ANSI 码" {
+	local red=$'\x1b[31m'
+	local reset=$'\x1b[0m'
+	run console.indent 1 "${red}red text${reset}"
+	[ "$status" -eq 0 ]
+	# 2 空格 + ANSI + text + ANSI
+	[[ "$output" == "  ${red}red text${reset}" ]]
+}
+
+@test "console.indent - 大缩进级别" {
+	run console.indent 10 "deep indent"
+	[ "$status" -eq 0 ]
+	# 20 空格 + 11 字符 = 31
+	[ "${#output}" -eq 31 ]
+}
+
+# ========== console.stdout 测试 ==========
+
+@test "console.stdout - 基本输出" {
+	run console.stdout "test message"
+	[ "$status" -eq 0 ]
+	[ "$output" = "test message" ]
+}
+
+@test "console.stdout - 多个参数" {
+	run console.stdout "hello" "world"
+	[ "$status" -eq 0 ]
+	[ "$output" = "hello world" ]
+}
+
+@test "console.stdout - 空参数" {
+	run console.stdout
+	[ "$status" -eq 0 ]
+	[ "$output" = "" ]
+}
+
+@test "console.stdout - 特殊字符" {
+	run console.stdout "test with \$VAR"
+	[ "$status" -eq 0 ]
+	[ "$output" = 'test with $VAR' ]
+}
+
+# ========== console.repeat 测试 ==========
+
+@test "console.repeat - 重复字符" {
+	result=$(console.repeat "=" 5)
+	[ "$result" = "=====" ]
+}
+
+@test "console.repeat - 重复字符串" {
+	result=$(console.repeat "ab" 3)
+	[ "$result" = "ababab" ]
+}
+
+@test "console.repeat - 零次重复" {
+	result=$(console.repeat "x" 0)
+	[ "$result" = "" ]
+}
+
+@test "console.repeat - 默认参数为0" {
+	result=$(console.repeat "y")
+	[ "$result" = "" ]
+}
+
+@test "console.repeat - 单次重复" {
+	result=$(console.repeat "-" 1)
+	[ "$result" = "-" ]
+}
+
+@test "console.repeat - UNDERLINE_CACHE 使用" {
+	# 验证缓存变量存在
+	[[ -n "$UNDERLINE_CACHE" ]]
+}
+
+# ========== console.section 测试 ==========
+
+@test "console.section - 基本标题输出" {
+	run console.section "Title"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"Title:"* ]]
+	[[ "$output" == *"====="* ]]
+}
+
+@test "console.section - 中文标题" {
+	run console.section "章节"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"章节:"* ]]
+}
+
+@test "console.section - 空标题" {
+	run console.section ""
+	[ "$status" -eq 0 ]
+	[[ "$output" == *":"* ]]
+}
+
+# ========== console.item 系列测试 ==========
+
+@test "console.item.title - 基本标题" {
+	run console.item.title 0 "Main Title"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"Main Title"* ]]
+}
+
+@test "console.item.title - 带缩进级别" {
+	run console.item.title 2 "Sub Title"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"Sub Title"* ]]
+}
+
+@test "console.item.item - 基本项目" {
+	# 先设置缩进深度
+	_CONSOLE_INDENT_DEPTH=1
+	run console.item.item "item content"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"item content"* ]]
+}
+
+@test "console.item.mid - 中间项目" {
+	_CONSOLE_INDENT_DEPTH=1
+	run console.item.mid "middle item"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"├─"* ]]
+	[[ "$output" == *"middle item"* ]]
+}
+
+@test "console.item.end - 结束项目" {
+	# 设置缩进深度
+	_CONSOLE_INDENT_DEPTH=1
+	
+	run console.item.end "last item"
+	[ "$status" -eq 0 ]
+	# 包含缩进、└─、内容和最后的换行符（空行）
+	[[ "$output" == *"└─ last item"* ]]
+}
+
+# ========== console.footer 测试 ==========
+
+@test "console.footer - 基本页脚" {
+	run console.footer "Footer Text"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"========="* ]]
+	[[ "$output" == *"Footer Text"* ]]
+}
+
+@test "console.footer - 多个参数" {
+	run console.footer "Line 1" "Line 2"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"Line 1 Line 2"* ]]
+}
+
+@test "console.footer - 无参数" {
+	run console.footer
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"========="* ]]
+}

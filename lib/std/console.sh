@@ -4,6 +4,8 @@ import std/string
 
 console.stdout() { printf "%s\n" "$*"; }
 
+console.stderr() { printf "%s\n" "$*" >&2; }
+
 console.repeat() {
   local -a line
   local i=1
@@ -15,12 +17,14 @@ console.repeat() {
   printf "%s" "${line[@]}"
 }
 
-console.stderr() { printf "%s\n" "$*" >&2; }
+UNDERLINE_CACHE=$(console.repeat "=" 20)
 
 console.align() {
 	local padding=$(( $1 - $(console.display_width "$2") ))
 	(( padding > 0 )) && printf "%s%${padding}s%s\n" "$2" "" "${*:3}" || printf "%s%s\n" "$2" "${*:3}"
-} >&2
+}
+
+console.indent() { console.align $(( $1*2 )) "" "${*:2}"; }
 
 console.ansi_width() {
 	local width=0 i=0 len=${#1} flag=0
@@ -54,4 +58,32 @@ console.display_width() {
 	[[ $1 ]] || { echo "0"; return; }
 	! string.is_ascii "$1" && console.mixed_width "$1" && return
 	string.has_ansi "$1" && console.ansi_width "$1" || echo "${#1}"
+}
+
+console.section() {
+	console.stdout "$1:"
+	console.stdout "=${UNDERLINE_CACHE:0:$(console.mixed_width $1)}"
+}
+
+console.item.title() {
+	console.indent $1 "${*:2}"
+	_CONSOLE_INDENT_DEPTH=$(( $1+1 ))
+}
+
+console.item.item() {
+	console.indent ${_CONSOLE_INDENT_DEPTH} "${*}"
+}
+
+console.item.mid(){
+	console.item.item "├─" "${*}"
+}
+
+console.item.end(){
+	console.item.item "└─" "${*}"
+	echo ""
+}
+
+console.footer(){
+	console.stdout "========="
+	console.stdout "${*}"
 }
