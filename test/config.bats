@@ -838,3 +838,74 @@ teardown() {
 	[ -f /tmp/test_array_update_$$.toml ]
 }
 
+# ========== 宽松模式 (loose mode) 测试 ==========
+
+@test "config.loose: enable loose mode" {
+	config.loose
+	[ "$_CONFIG_STRICT_MODE" -eq 0 ]
+}
+
+@test "config.load loose: load unregistered keys" {
+	config.loose
+	{
+		echo 'unregistered_key = "value1"'
+		echo 'another_key = "value2"'
+	} > /tmp/test_loose_$$.toml
+	config.load /tmp/test_loose_$$.toml
+	[ "${_CONFIG_VALUES[unregistered_key]}" = "value1" ]
+	[ "${_CONFIG_VALUES[another_key]}" = "value2" ]
+}
+
+@test "config.load loose: load unregistered array sections" {
+	config.loose
+	{
+		echo "[servers.prod]"
+		echo 'host = "1.1.1.1"'
+		echo 'port = "8080"'
+		echo "[servers.dev]"
+		echo 'host = "2.2.2.2"'
+	} > /tmp/test_loose_array_$$.toml
+	config.load /tmp/test_loose_array_$$.toml
+	[[ " ${_CONFIG_ARRAY_ITEMS[servers]} " == *" prod "* ]]
+	[[ " ${_CONFIG_ARRAY_ITEMS[servers]} " == *" dev "* ]]
+	[ "${_CONFIG_VALUES[servers.prod.host]}" = "1.1.1.1" ]
+	[ "${_CONFIG_VALUES[servers.prod.port]}" = "8080" ]
+	[ "${_CONFIG_VALUES[servers.dev.host]}" = "2.2.2.2" ]
+}
+
+@test "config.load loose: mixed with registered keys" {
+	config.register "registered_key" "default" "string"
+	config.loose
+	{
+		echo 'registered_key = "updated"'
+		echo 'unregistered_key = "value"'
+	} > /tmp/test_loose_mixed_$$.toml
+	config.load /tmp/test_loose_mixed_$$.toml
+	[ "${_CONFIG_VALUES[registered_key]}" = "updated" ]
+	[ "${_CONFIG_VALUES[unregistered_key]}" = "value" ]
+}
+
+@test "config.load strict: ignore unregistered keys by default" {
+	config.register "registered_key" "default" "string"
+	# _CONFIG_STRICT_MODE defaults to 1 (strict)
+	{
+		echo 'registered_key = "updated"'
+		echo 'unregistered_key = "ignored"'
+	} > /tmp/test_strict_$$.toml
+	config.load /tmp/test_strict_$$.toml
+	[ "${_CONFIG_VALUES[registered_key]}" = "updated" ]
+	[[ ! -v "_CONFIG_VALUES[unregistered_key]" ]]
+}
+
+@test "config.load loose: key name with special characters" {
+	config.loose
+	{
+		echo 'key-with-dash = "value1"'
+		echo 'key_with_underscore = "value2"'
+		echo 'key.with.dots = "value3"'
+	} > /tmp/test_loose_special_$$.toml
+	config.load /tmp/test_loose_special_$$.toml
+	[ "${_CONFIG_VALUES[key-with-dash]}" = "value1" ]
+	[ "${_CONFIG_VALUES[key_with_underscore]}" = "value2" ]
+	[ "${_CONFIG_VALUES[key.with.dots]}" = "value3" ]
+}

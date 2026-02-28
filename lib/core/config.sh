@@ -12,6 +12,7 @@ declare -gA _CONFIG_ARRAY_ITEMS=()
 declare -gA _CONFIG_VALUES=()
 declare -gA _CONFIG_TYPES=()
 declare -gA _CONFIG_DESCS=()
+declare -gi _CONFIG_STRICT_MODE=1
 
 config.path() {
 	[[ -n ${_CONFIG_PATH+x} ]] && echo "$_CONFIG_PATH" && return 0
@@ -35,6 +36,7 @@ config.array.register() {
 	config.register "$1.$2" "${@:3}"
 	unset '_CONFIG_REGISTERED[-1]'
 }
+config.loose() { _CONFIG_STRICT_MODE=0; }
 
 config.load() {
 	local _f="${1:-$(config.path)}" _in_arr=false _table=""
@@ -49,16 +51,16 @@ config.load() {
 			_in_arr=false
 			if [[ "$_table" =~ ^([^.]+)\.(.+)$ ]]; then
 				local _arr="${BASH_REMATCH[1]}" _itm="${BASH_REMATCH[2]}"
-				config.array.has "$_arr" && config.array.add "$_arr" "$_itm" && _in_arr=true
+				! ((_CONFIG_STRICT_MODE)) || config.array.has "$_arr" && config.array.add "$_arr" "$_itm" && _in_arr=true
 			fi
 			continue
 		fi
 
-		[[ "$line" =~ ^([[:alpha:]][[:alnum:]_.-]*)[[:space:]]*=[[:space:]]*(.*)$ ]] || continue
+		[[ "$line" =~ ^([^=[:space:]]+)[[:space:]]*=[[:space:]]*(.*)$ ]] || continue
 		local _ak="${BASH_REMATCH[1]}"
 		local _k="${_table:+$_table.}$_ak" _v="${BASH_REMATCH[2]}"
-		[[ "$_in_arr" != "true" ]] && { array.contains "_CONFIG_REGISTERED" "$_k" || continue; }
-		[[ "$_in_arr" == "true" ]] && { config.array.has "$_arr" "$_itm" "$_ak" || continue; }
+		((_CONFIG_STRICT_MODE)) && [[ "$_in_arr" != "true" ]] && { array.contains "_CONFIG_REGISTERED" "$_k" || continue; }
+		((_CONFIG_STRICT_MODE)) && [[ "$_in_arr" == "true" ]] && { config.array.has "$_arr" "$_itm" "$_ak" || continue; }
 
 		_v="${_v%${_v##*[![:space:]]}}"
 		[[ "$_v" =~ ^[\'\"](.*)[\'\"]$ ]] && _v="${BASH_REMATCH[1]}"
