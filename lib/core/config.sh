@@ -82,6 +82,18 @@ config.set() {
 	_CONFIG_VALUES["$1"]="$2"
 }
 
+config.sections() {
+	local prefix="${1:-}"
+	local -A seen=()
+	local key section_prefix="${prefix:+$prefix.}"
+
+	for key in "${!_CONFIG_VALUES[@]}"; do
+		[[ "$key" == ${section_prefix}*.* ]] && seen["${key#$section_prefix%%.*}"]=1
+	done
+
+	printf "%s\n" "${!seen[@]}"
+}
+
 config.array.items() { [[ -v "_CONFIG_ARRAY_ITEMS[$1]" ]] && echo "${_CONFIG_ARRAY_ITEMS[$1]}"; }
 
 config.array.has() {

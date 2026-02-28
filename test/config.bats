@@ -909,3 +909,60 @@ teardown() {
 	[ "${_CONFIG_VALUES[key_with_underscore]}" = "value2" ]
 	[ "${_CONFIG_VALUES[key.with.dots]}" = "value3" ]
 }
+
+
+# ========== config.sections 测试 ==========
+
+@test "config.sections: basic section extraction" {
+	config.register "section1.key1" "value1" "string"
+	config.register "section1.key2" "value2" "string"
+	config.register "section2.key1" "value3" "string"
+	config.register "top_level" "value4" "string"
+
+	result=$(config.sections)
+	[[ "$result" == *"section1"* ]]
+	[[ "$result" == *"section2"* ]]
+	[[ "$result" != *"top_level"* ]]
+}
+
+@test "config.sections: with prefix filter" {
+	config.register "parent.child1.key1" "value1" "string"
+	config.register "parent.child1.key2" "value2" "string"
+	config.register "parent.child2.key1" "value3" "string"
+	config.register "other.section.key" "value4" "string"
+
+	result=$(config.sections "parent")
+	[[ "$result" == *"child1"* ]]
+	[[ "$result" == *"child2"* ]]
+	[[ "$result" != *"other"* ]]
+	[[ "$result" != *"section"* ]]
+}
+
+@test "config.sections: empty prefix returns all sections" {
+	config.register "a.b" "1" "string"
+	config.register "x.y.z" "2" "string"
+
+	result=$(config.sections "")
+	[[ "$result" == *"a"* ]]
+	[[ "$result" == *"x"* ]]
+}
+
+@test "config.sections: no sections returns empty" {
+	config.register "top1" "value1" "string"
+	config.register "top2" "value2" "string"
+
+	result=$(config.sections)
+	[ -z "$result" ]
+}
+
+@test "config.sections: nested sections" {
+	config.register "level1.level2.level3.key" "value" "string"
+	config.register "level1.other.key" "value2" "string"
+
+	result=$(config.sections "level1")
+	[[ "$result" == *"level2"* ]]
+	[[ "$result" == *"other"* ]]
+
+	result2=$(config.sections "level1.level2")
+	[[ "$result2" == *"level3"* ]]
+}
