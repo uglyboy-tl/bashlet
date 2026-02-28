@@ -962,7 +962,9 @@ teardown() {
 	result=$(config.sections "level1")
 	[[ "$result" == *"level2"* ]]
 	[[ "$result" == *"other"* ]]
+	[[ "$result" != *"level1"* ]]
 
 	result2=$(config.sections "level1.level2")
 	[[ "$result2" == *"level3"* ]]
+	[[ "$result2" != *"level2"* ]]
 }

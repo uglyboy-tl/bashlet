@@ -88,7 +88,10 @@ config.sections() {
 	local key section_prefix="${prefix:+$prefix.}"
 
 	for key in "${!_CONFIG_VALUES[@]}"; do
-		[[ "$key" == ${section_prefix}*.* ]] && seen["${key#$section_prefix%%.*}"]=1
+		[[ "$key" == ${section_prefix}*.* ]] && {
+			local part=${key#$section_prefix}
+			seen["${part%%.*}"]=1
+		}
 	done
 
 	printf "%s\n" "${!seen[@]}"
