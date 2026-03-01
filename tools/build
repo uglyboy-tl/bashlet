@@ -98,7 +98,7 @@ build() {
 	SCRIPT_NAME="${all_deps[0]}"
 	[[ "$SCRIPT_NAME" == $"\1" ]] && unset SCRIPT_NAME
 	log.debug "SCRIPT_NAME: ${SCRIPT_NAME:-}"
-	[[ ! -n $OUTPUT_FILE ]] && local name="${SCRIPT_NAME:-$MAIN_FILE}"; OUTPUT_FILE="${OUTPUT_DIR:-build}/${name,,}";
+	[[ ! -n $OUTPUT_FILE ]] && local name="${SCRIPT_NAME:-$MAIN_FILE}" && OUTPUT_FILE="${OUTPUT_DIR:-build}/${name,,}";
 
 	# 打开输出文件一次（使用文件描述符3）
 	> "$OUTPUT_FILE"  # 先清空
