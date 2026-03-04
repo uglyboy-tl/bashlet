@@ -340,24 +340,38 @@ setup_verify() {
 }
 
 @test "args.verify - 重复短选项检测" {
-	setup_verify
-	args.parse -v -v
-	run args.verify
-	[ "$status" -ne 0 ]
+  setup_verify
+  args.parse -v -v
+  run args.verify
+  [ "$status" -ne 0 ]
 }
 
 @test "args.verify - 重复长选项检测" {
-	setup_verify
-	args.parse --verbose --verbose
-	run args.verify
-	[ "$status" -ne 0 ]
+  setup_verify
+  args.parse --verbose --verbose
+  run args.verify
+  [ "$status" -ne 0 ]
 }
 
 @test "args.verify - 短选项和长选项互斥检测" {
-	setup_verify
-	args.parse -v --verbose
-	run args.verify
-	[ "$status" -ne 0 ]
+  setup_verify
+  args.parse -v --verbose
+  run args.verify
+  [ "$status" -ne 0 ]
+}
+
+@test "args.verify - 组合参数中的重复选项检测" {
+  setup_verify
+  args.parse -vv
+  run args.verify
+  [ "$status" -ne 0 ]
+}
+
+@test "args.verify - 复杂重复选项组合检测" {
+  setup_verify
+  args.parse -v -f file.txt -v
+  run args.verify
+  [ "$status" -ne 0 ]
 }
 
 @test "args.verify - 不同选项可以重复使用" {
@@ -420,27 +434,31 @@ setup_verify() {
 
 # ============ args.verify 位置参数验证测试 ============
 
-@test "args.verify - 未注册参数但有位置参数时失败" {
-	args.init
-	# 不注册任何 ARG，但提供位置参数
-	args.parse arg1 arg2
-	run args.verify
-	[ "$status" -ne 0 ]
+@test "args.verify - 位置参数与选项参数正确分离" {
+  setup_verify
+  args.add_options "ARG" "input" "输入文件"
+  args.parse -f input.txt another.txt
+  args.verify
+  [ $? -eq 0 ]
+  # 验证 _ARGS_FINAL_ARGS 只包含位置参数
+  final_args_var=$(args.args)
+  eval "final_args=(\"\${${final_args_var}[@]}\")"
+  [ "${#final_args[@]}" -eq 1 ]
+  [ "${final_args[0]}" = "another.txt" ]
 }
 
-@test "args.verify - 注册参数后有位置参数时通过" {
-	args.init
-	args.add_options "ARG" "input" "输入文件"
-	args.parse input.txt
-	args.verify
-	[ $? -eq 0 ]
-}
-
-@test "args.verify - 无注册参数也无位置参数时通过" {
-	args.init
-	args.parse
-	args.verify
-	[ $? -eq 0 ]
+@test "args.verify - 多个位置参数正确处理" {
+  setup_verify
+  args.add_options "ARG" "input" "输入文件"
+  args.add_options "ARG" "output" "输出文件"
+  args.parse -f input.txt file1.txt file2.txt
+  args.verify
+  [ $? -eq 0 ]
+  final_args_var=$(args.args)
+  eval "final_args=(\"\${${final_args_var}[@]}\")"
+  [ "${#final_args[@]}" -eq 2 ]
+  [ "${final_args[0]}" = "file1.txt" ]
+  [ "${final_args[1]}" = "file2.txt" ]
 }
 
 # ============ args.name / args.description 测试 ============
@@ -594,7 +612,7 @@ setup_verify() {
 	cat > "$tmp_script" << SCRIPT
 #!/usr/bin/env bash
 PROJECT_ROOT="$PROJECT_ROOT"
-source "$PROJECT_ROOT/std/import.sh"
+source "$PROJECT_ROOT/lib/std/import.sh"
 import core/args
 args.init "测试脚本"
 args.add_options "file" "f" "输入文件" "FILE"
@@ -612,7 +630,7 @@ SCRIPT
 	cat > "$tmp_script" << SCRIPT
 #!/usr/bin/env bash
 PROJECT_ROOT="$PROJECT_ROOT"
-source "$PROJECT_ROOT/std/import.sh"
+source "$PROJECT_ROOT/lib/std/import.sh"
 import core/args
 args.init "测试脚本"
 args.add_options "file" "f" "输入文件" "FILE"
@@ -631,7 +649,7 @@ SCRIPT
 	cat > "$tmp_script" << SCRIPT
 #!/usr/bin/env bash
 PROJECT_ROOT="$PROJECT_ROOT"
-source "$PROJECT_ROOT/std/import.sh"
+source "$PROJECT_ROOT/lib/std/import.sh"
 import core/args
 args.init
 args.add_options "file" "f" "输入文件" "FILE"
@@ -680,4 +698,78 @@ SCRIPT
 	args.verify
 	result=$(args.args)
 	[ "$result" = "_ARGS_FINAL_ARGS" ]
+}
+
+# ============ args.verify 修复测试 ============
+
+@test "args.verify - 仅注册长选项时验证通过" {
+	args.init
+	args.add_options "verbose" "" "显示详细输出"
+	args.add_options "config" "" "配置文件" "FILE"
+	args.parse --verbose --config config.json
+	args.verify
+	[ $? -eq 0 ]
+	[ "$(args.get "--verbose")" = "" ]
+	[ "$(args.get "--config")" = "config.json" ]
+}
+
+@test "args.verify - 仅注册长选项且有位置参数时验证通过" {
+	args.init
+	args.add_options "verbose" "" "显示详细输出"
+	args.add_options "ARG" "input" "输入文件"
+	args.parse --verbose input.txt
+	args.verify
+	[ $? -eq 0 ]
+	final_args_var=$(args.args)
+	eval "final_args=(\"\${${final_args_var}[@]}\")"
+	[ "${#final_args[@]}" -eq 1 ]
+	[ "${final_args[0]}" = "input.txt" ]
+}
+
+@test "args.verify - 混合长短选项和仅长选项验证通过" {
+	args.init
+	args.add_options "verbose" "v" "显示详细输出"
+	args.add_options "config" "" "配置文件" "FILE"
+	args.add_options "output" "o" "输出文件" "FILE"
+	args.parse -v --config config.json -o output.txt
+	args.verify
+	[ $? -eq 0 ]
+	run args.has "-v"
+	[ "$status" -eq 0 ]
+	[ "$(args.get "--config")" = "config.json" ]
+	[ "$(args.get "-o")" = "output.txt" ]
+}
+
+@test "args.verify - 仅长选项的重复检测" {
+	args.init
+	args.add_options "verbose" "" "显示详细输出"
+	args.parse --verbose --verbose
+	run args.verify
+	[ "$status" -ne 0 ]
+}
+
+@test "args.verify - 未注册选项但只检查存在的开关映射" {
+	args.init
+	args.add_options "verbose" "" "显示详细输出"
+	args.parse --unknown
+	run args.verify
+	[ "$status" -ne 0 ]
+}
+
+@test "args.verify - 参数索引正确处理选项参数" {
+	args.init
+	args.add_options "file" "f" "输入文件" "FILE"
+	args.add_options "output" "o" "输出文件" "FILE"
+	args.add_options "ARG" "extra" "额外参数"
+	args.parse -f input.txt -o output.txt extra.txt
+	args.verify
+	[ $? -eq 0 ]
+	# 验证 _ARGS_FINAL_ARGS 只包含位置参数，不包含选项参数
+	final_args_var=$(args.args)
+	eval "final_args=(\"\${${final_args_var}[@]}\")"
+	[ "${#final_args[@]}" -eq 1 ]
+	[ "${final_args[0]}" = "extra.txt" ]
+	# 验证选项参数仍然可以正确获取
+	[ "$(args.get "-f")" = "input.txt" ]
+	[ "$(args.get "-o")" = "output.txt" ]
 }
