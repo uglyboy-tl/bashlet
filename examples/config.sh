@@ -4,7 +4,7 @@
 # 通过代码展示配置注册、加载、数组配置和保存功能
 #
 
-PROJECT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
+PROJECT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 source "$PROJECT_ROOT/lib/std/import.sh"
 
 import core/config
