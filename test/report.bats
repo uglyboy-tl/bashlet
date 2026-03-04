@@ -28,14 +28,14 @@ teardown() {
 @test "report.init - 初始化报告" {
   report.init "Test Report"
   # 应该包含 front_matter, 空行, h1 标题, 空行
-  [[ "${_REPORT_CONTENT[0]}" == "---"* ]]
-  [[ "${_REPORT_CONTENT[2]}" == "# Test Report" ]]
+  [[ ${_REPORT_CONTENT[0]} == "---"* ]]
+  [[ ${_REPORT_CONTENT[2]} == "# Test Report" ]]
   [ "${#_REPORT_CONTENT[@]}" -eq 4 ]
 }
 
 @test "report.section - 添加章节" {
   report.section "Section Title"
-  [[ "${_REPORT_CONTENT[0]}" == "## 1. Section Title" ]]
+  [[ ${_REPORT_CONTENT[0]} == "## 1. Section Title" ]]
   [ "${_REPORT_CONTENT[1]}" = "" ]
   [ "$_REPORT_SECTION_NUM" -eq 2 ]
 }
@@ -48,18 +48,18 @@ teardown() {
 @test "report.code - 添加代码块" {
   # 使用简单的命令进行测试
   report.code "echo hello"
-  [[ "${_REPORT_CONTENT[0]}" == *"bash"* ]]
-  [[ "${_REPORT_CONTENT[0]}" == *"echo hello"* ]]
-  [[ "${_REPORT_CONTENT[0]}" == *"\`\`\`"* ]]
+  [[ ${_REPORT_CONTENT[0]} == *"bash"* ]]
+  [[ ${_REPORT_CONTENT[0]} == *"echo hello"* ]]
+  [[ ${_REPORT_CONTENT[0]} == *"\`\`\`"* ]]
   [ "${_REPORT_CONTENT[1]}" = "hello" ]
   [ "${_REPORT_CONTENT[2]}" = "" ]
 }
 
 @test "report.table.begin - 开始表格" {
   report.table.begin "Col1" "Col2"
-  [[ "${_REPORT_CONTENT[0]}" == *"Col1"* ]]
-  [[ "${_REPORT_CONTENT[0]}" == *"Col2"* ]]
-  [[ "${_REPORT_CONTENT[0]}" == *"---"* ]]
+  [[ ${_REPORT_CONTENT[0]} == *"Col1"* ]]
+  [[ ${_REPORT_CONTENT[0]} == *"Col2"* ]]
+  [[ ${_REPORT_CONTENT[0]} == *"---"* ]]
 }
 
 @test "report.table.add - 添加表格行" {

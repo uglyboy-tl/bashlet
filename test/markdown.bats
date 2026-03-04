@@ -72,23 +72,23 @@ setup() {
 @test "markdown.code creates code blocks" {
   # With language
   result=$(markdown.code "bash" "echo hello")
-  expected="\`\`\`bash
+  expected='```bash
 echo hello
-\`\`\`"
+```'
   [ "$result" = "$expected" ]
 
   # Without language (single parameter)
   result=$(markdown.code "echo hello")
-  expected="\`\`\`
+  expected='```
 echo hello
-\`\`\`"
+```'
   [ "$result" = "$expected" ]
 
   # Empty language
   result=$(markdown.code "" "echo hello")
-  expected="\`\`\`
+  expected='```
 echo hello
-\`\`\`"
+```'
   [ "$result" = "$expected" ]
 }
 
@@ -110,8 +110,8 @@ echo hello
 @test "markdown.front_matter creates YAML front matter" {
   export SCRIPT_NAME="test"
   run bash -c "source $PROJECT_ROOT/lib/std/markdown.sh && markdown.front_matter 'Title'"
-  [[ "${lines[0]}" == "---" ]]
-  [[ "${lines[1]}" == "title: Title" ]]
-  [[ "${lines[3]}" == "author: test" ]]
-  [[ "${lines[4]}" == "---" ]]
+  [[ ${lines[0]} == "---" ]]
+  [[ ${lines[1]} == "title: Title" ]]
+  [[ ${lines[3]} == "author: test" ]]
+  [[ ${lines[4]} == "---" ]]
 }
