@@ -109,7 +109,7 @@ echo hello
 
 @test "markdown.front_matter creates YAML front matter" {
   export SCRIPT_NAME="test"
-  run bash -c "source $PROJECT_ROOT/std/markdown.sh && markdown.front_matter 'Title'"
+  run bash -c "source $PROJECT_ROOT/lib/std/markdown.sh && markdown.front_matter 'Title'"
   [[ "${lines[0]}" == "---" ]]
   [[ "${lines[1]}" == "title: Title" ]]
   [[ "${lines[3]}" == "author: test" ]]

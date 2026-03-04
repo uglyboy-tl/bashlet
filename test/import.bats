@@ -6,9 +6,9 @@ setup() {
 	_common_setup
 
 	# 直接使用现有的文件进行测试
-	export LOAD_SH_PATH="$PROJECT_ROOT/std/import.sh"
-	export CONSOLE_SH_PATH="$PROJECT_ROOT/std/console.sh"
-	export PROJECT_ROOT_DIR="$PROJECT_ROOT"
+	export LOAD_SH_PATH="$PROJECT_ROOT/lib/std/import.sh"
+	export CONSOLE_SH_PATH="$PROJECT_ROOT/lib/std/console.sh"
+	export PROJECT_ROOT_DIR="$PROJECT_ROOT/lib"
 }
 
 teardown() {
@@ -16,7 +16,7 @@ teardown() {
 }
 
 @test "console.sh - 仅文件名加载（从std目录）" {
-	cd "$PROJECT_ROOT/std"
+	cd "$PROJECT_ROOT/lib/std"
 
 	source "console.sh"
 	[ "${#__loaded_modules[@]}" -eq 3 ]
@@ -40,7 +40,7 @@ teardown() {
 }
 
 @test "console.sh - ./格式加载（从std目录）" {
-	cd "$PROJECT_ROOT/std"
+	cd "$PROJECT_ROOT/lib/std"
 
 	source "./console.sh"
 	[ "${#__loaded_modules[@]}" -eq 3 ]
@@ -53,13 +53,13 @@ teardown() {
 }
 
 @test "console.sh - ../格式化加载（从不同目录）" {
-	cd "$PROJECT_ROOT"
+	cd "$PROJECT_ROOT/lib"
 
 	source "std/console.sh"
 	[ "${#__loaded_modules[@]}" -eq 3 ]
 
 	# 切换到std目录，使用不同相对路径加载（应该被阻止）
-	cd "$PROJECT_ROOT/std"
+	cd "$PROJECT_ROOT/lib/std"
 	source "./console.sh"
 	[ "${#__loaded_modules[@]}" -eq 3 ]
 }
@@ -70,7 +70,7 @@ teardown() {
 	local count1="${#__loaded_modules[@]}"
 
 	# 使用相对路径再次加载（从std目录，应该被阻止）
-	cd "$PROJECT_ROOT/std"
+	cd "$PROJECT_ROOT/lib/std"
 	source "./console.sh"
 	local count2="${#__loaded_modules[@]}"
 
@@ -112,7 +112,7 @@ teardown() {
 }
 
 @test "import.sh自身 - 多次source不重复初始化（相对路径）" {
-	cd "$PROJECT_ROOT/std"
+	cd "$PROJECT_ROOT/lib/std"
 
 	# setup中已经source过一次，__loaded_modules已被初始化
 	[ "${#__loaded_modules[@]}" -eq 1 ]
@@ -142,14 +142,14 @@ teardown() {
 }
 
 @test "console.sh - 不同工作目录下的相对路径" {
-	cd "$PROJECT_ROOT"
+	cd "$PROJECT_ROOT/lib"
 
 	# 在项目根目录加载
 	source "std/console.sh"
 	local count1="${#__loaded_modules[@]}"
 
 	# 在std目录加载（应该被阻止）
-	cd "$PROJECT_ROOT/std"
+	cd "$PROJECT_ROOT/lib/std"
 	source "./console.sh"
 	local count2="${#__loaded_modules[@]}"
 
@@ -192,7 +192,7 @@ EOF
 }
 
 @test "import - 从src目录加载相对路径" {
-	cd "$PROJECT_ROOT"
+	cd "$PROJECT_ROOT/lib"
 
 	# 使用import加载std/console.sh (相对于lib/)
 	import "std/console.sh"
@@ -230,7 +230,7 @@ EOF
 }
 
 @test "import - 支持深层路径" {
-	cd "$PROJECT_ROOT"
+	cd "$PROJECT_ROOT/lib"
 
 	# 创建深层测试模块
 	mkdir -p deep/nested
