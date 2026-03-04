@@ -7,7 +7,7 @@ SCRIPT_NAME="测试运行器"
 VERSION="1.0.3"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-BATS_DIR="$PROJECT_ROOT/test/bats"
+BATS_DIR="$(cd "test/bats" && pwd)"
 BATS_EXEC="$BATS_DIR/bin/bats"
 
 source "$PROJECT_ROOT/lib/std/import.sh"
@@ -54,7 +54,7 @@ run_tests() {
 	log.info "开始运行测试..."
 
 	# 切换到test目录并添加bats到PATH
-	cd "$PROJECT_ROOT/test"
+	cd "test"
 	export PATH="$BATS_DIR/bin:$PATH"
 
 	# 构建Bats命令

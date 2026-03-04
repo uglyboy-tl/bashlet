@@ -8,6 +8,7 @@ SUBMODULE_DIR="$(dirname "$CURRENT_PATH")"
 SUBMODULE_NAME="$(basename "$SUBMODULE_DIR")"
 PROJECT_ROOT="$(dirname "$SUBMODULE_DIR")"
 LIB_DIR="$PROJECT_ROOT/lib"
+TEST_DIR="$PROJECT_ROOT/test"
 
 source "$SUBMODULE_DIR/lib/std/import.sh"
 import core/args
@@ -19,12 +20,16 @@ main() {
 	args.process "$@"
 	args.has "-v" "--version" && usage.version && exit 0
 
-	mkdir -p "$LIB_DIR"
+	mkdir -p "$LIB_DIR" "$TEST_DIR" "$TEST_DIR/test_helper"
 	cd "$PROJECT_ROOT"
 	[[ ! -d lib/core ]] && ln -rsfn "$SUBMODULE_NAME/lib/core" lib/
 	[[ ! -d lib/std ]] && ln -rsfn "$SUBMODULE_NAME/lib/std" lib/
 	[[ ! -d lib/ext ]] && ln -rsfn "$SUBMODULE_NAME/lib/ext" lib/
-	[[ ! -f "main.sh" ]] && cp "$SUBMODULE_NAME/examples/main.sh" ./
+	[[ ! -d test/bats ]] && ln -rsfn "$SUBMODULE_NAME/test/bats" test/
+	[[ ! -d test/test_helper/bats-assert ]] && ln -rsfn "$SUBMODULE_NAME/test/test_helper/bats-assert" test/test_helper/
+	[[ ! -d test/test_helper/bats-support ]] && ln -rsfn "$SUBMODULE_NAME/test/test_helper/bats-support" test/test_helper/
+	cp "$SUBMODULE_NAME/test/test_helper/common-setup.bash" test/test_helper/
+	[[ ! -f "src/example.sh" ]] && cp "$SUBMODULE_NAME/examples/main.sh" "src/example.sh"
 	[[ ! -f "config.toml" ]] && touch config.toml
 }
 
