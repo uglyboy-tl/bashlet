@@ -25,12 +25,6 @@ teardown() {
   [ "${#_REPORT_CONTENT[@]}" -eq 0 ]
 }
 
-@test "report.add - 添加内容到报告" {
-  report.add "line1" "line2"
-  [ "${_REPORT_CONTENT[0]}" = "line1" ]
-  [ "${_REPORT_CONTENT[1]}" = "line2" ]
-}
-
 @test "report.init - 初始化报告" {
   report.init "Test Report"
   # 应该包含 front_matter, 空行, h1 标题, 空行
@@ -79,10 +73,10 @@ teardown() {
 }
 
 @test "report.export - 导出报告" {
-  report.add "Test content"
+  report.subsection "Test content"
   local file
   file=$(report.export "/tmp/test_report_$(date +%Y%m%d_%H%M%S).md")
   [ -f "$file" ]
-  [ "$(cat "$file")" = "Test content" ]
+  [ "$(cat "$file")" = "### Test content" ]
   rm -f "$file"
 }
