@@ -34,12 +34,12 @@ args.init() {
 
 args.add_options() {
   local type="${4:-}" key subcommand
-  : ${type:="NONE"}
+  : "${type:="NONE"}"
   [[ -n $_ARGS_CURRENT_SUBCOMMAND ]] && subcommand=" $_ARGS_CURRENT_SUBCOMMAND" || subcommand=""
   case ${1^^} in
   "ARG") [[ -n $2 ]] && _ARGS_HELP_ARGS["$2"]="${3}" && _ARGS_OPTIONS_TYPE["$2"]="${type}" ;;
   "EXAMPLE") _ARGS_HELP_EXAMPLES["$(basename "$0")$subcommand $2"]="${3}" ;;
-  "NOTICE") _ARGS_HELP_NOTICES+=("${2}") ;;
+  "NOTICE") _ARGS_HELP_NOTICES+=(["${2}"]="") ;;
   *)
     _ARGS_OPTIONS_TYPE["$1"]="${type}"
     _ARGS_OPTIONS+=("$1")
@@ -116,7 +116,7 @@ args.parse() {
 
 args.verify() {
   for option in "${_ARGS_OPTS[@]}"; do
-    local opt="${option##*-}" another other
+    local opt="${option##*-}" another
     array.contains _ARGS_OPTIONS "$opt" || {
       log.error "未知选项: \"$option\""
       return 1
@@ -127,14 +127,14 @@ args.verify() {
       [[ $option =~ ^-[a-zA-Z]$ ]] && opt=$another
     }
     case ${_ARGS_OPTIONS_TYPE[$opt]} in
-    "NONE") unset _ARGS_OPT_ARGS[$option] 2> /dev/null || true ;;
+    "NONE") unset "_ARGS_OPT_ARGS[$option]" 2> /dev/null || true ;;
     *) [[ -z ${_ARGS_OPT_ARGS[$option]+x} ]] && log.error "选项 $option 需要参数" && return 1 ;;
     esac
   done
   array.has_duplicates _ARGS_OPTS && log.error "重复选项" && return 1
   local -a _ARGS_TEMP_ARGS=("${_ARGS_ARGS[@]}")
   for value in "${_ARGS_OPT_ARGS[@]}"; do
-    unset _ARGS_TEMP_ARGS[$value]
+    unset "_ARGS_TEMP_ARGS[$value]"
   done
   declare -ga _ARGS_FINAL_ARGS=("${_ARGS_TEMP_ARGS[@]}")
   [[ $(map.len _ARGS_HELP_ARGS) -eq 0 ]] && [[ $(array.len _ARGS_FINAL_ARGS) -gt 0 ]] && log.error "位置参数错误" && return 1 || true
