@@ -8,7 +8,7 @@ fs.dir.exists() { [[ -d $1 ]]; }
 
 fs.write() {
   local _f="$1"
-  mkdir -p $(dirname "$1")
+  mkdir -p "$(dirname "$1")"
   shift
   (($# > 0)) && printf "%s\n" "$@" > "$_f" || : > "$_f"
 }
@@ -24,13 +24,13 @@ fs.insert() { sed -i "/$2/a\\$3" "$1" 2> /dev/null; }
 
 fs.rmline() { [[ -n $4 ]] && sed -i "${4},/$2/{/$2/d}" "$1" 2> /dev/null || sed -i "/$2/d" "$1" 2> /dev/null; }
 
-fs.cleanup() { ls -t ${1}* 2> /dev/null | tail -n +$((${2:-3} + 1)) | xargs -r rm -f; } # 保留最新的 n 个文件 (默认 3 个)
+fs.cleanup() { ls -t "${1}"* 2> /dev/null | tail -n +$((${2:-3} + 1)) | xargs -r rm -f; } # 保留最新的 n 个文件 (默认 3 个)
 
 fs.mktemp() { mktemp "$@" 2> /dev/null || { log.error "Failed to create temporary file" && return 1; }; }
 
 fs.file.extract() {
   local path=$(realpath "$1") base=$(basename "$1")
-  builtin cd "$2" > /dev/null
+  builtin cd "$2" > /dev/null || return 1
 
   case "${base,,}" in
   *.zip | *.war | *.jar | *.ear | *.sublime-package | *.ipa | *.ipsw | *.xpi | *.apk | *.aar | *.whl | *.vsix | *.crx | *.pk3 | *.pk4) unzip -q "$path" ;;
