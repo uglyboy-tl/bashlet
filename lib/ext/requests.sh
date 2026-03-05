@@ -150,7 +150,7 @@ requests.sse() {
 
 # URL 编码辅助函数
 requests._urlencode() {
-  echo "$("$_REQUESTS_JQ" -nr --arg str "$1" '$str | @uri')"
+  "$_REQUESTS_JQ" -nr --arg str "$1" '$str | @uri'
 }
 
 # 自动检测 Content-Type 辅助函数

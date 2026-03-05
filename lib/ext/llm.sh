@@ -3,9 +3,9 @@
 import ext/requests
 import core/log
 
-: ${OPENAI_API_KEY:=""}
-: ${OPENAI_BASE_URL:="https://api.deepseek.com/v1"}
-: ${_LLM_MODEL:="deepseek-chat"}
+: "${OPENAI_API_KEY:=""}"
+: "${OPENAI_BASE_URL:="https://api.deepseek.com/v1"}"
+: "${_LLM_MODEL:="deepseek-chat"}"
 
 llm.init() {
   requests.init
@@ -18,16 +18,16 @@ llm.base_url() { OPENAI_BASE_URL="$1"; }
 llm.model() { _LLM_MODEL="$1"; }
 
 llm.chat.stream() {
-  local model="$1"
+  local model="${1:-$_LLM_MODEL}"
   local messages="$2"
-  local callback="${3:-llm._default_callback}"
+  local callback="${3:-llm._sse_callback}"
 
   requests.jq.check
   [[ -n $OPENAI_API_KEY ]] || { log.error "API key not set. Call llm.api_key first." && return 1; }
 
   local body
   body=$(jq -n \
-    --arg model "$_LLM_MODEL" \
+    --arg model "$model" \
     --argjson messages "$messages" \
     '{
 			model: $model,
@@ -55,6 +55,6 @@ llm.chat() {
   local messages
   messages=$(jq -n --arg text "$text" '[{"role": "user", "content": $text}]')
 
-  llm.chat.stream "$_LLM_MODEL" "$messages" "llm._sse_callback"
+  llm.chat.stream "" "$messages" "llm._sse_callback"
   echo
 }
