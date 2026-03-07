@@ -16,6 +16,7 @@ usage.title() {
   local _title="$_USAGE_SCRIPT_NAME"
   [[ -n $_ARGS_CURRENT_SUBCOMMAND ]] && _title="$_title - $_ARGS_CURRENT_SUBCOMMAND"
   [[ -n $_USAGE_SCRIPT_DESC ]] && _title="$_title - $_USAGE_SCRIPT_DESC"
+  # shellcheck disable=SC2154
   console.stdout "${Bold}${_title}${NC}"
 }
 
