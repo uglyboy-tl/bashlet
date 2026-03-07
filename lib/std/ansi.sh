@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-
+# shellcheck disable=SC2034
 ANSI_ESC=$'\033'
 ANSI_CSI="${ANSI_ESC}["
 

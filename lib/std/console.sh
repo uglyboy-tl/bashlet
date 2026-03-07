@@ -94,16 +94,16 @@ console.display_width() {
 
 console.section() {
   console.stdout "$1:"
-  console.stdout "=${UNDERLINE_CACHE:0:$(console.mixed_width $1)}"
+  console.stdout "=${UNDERLINE_CACHE:0:$(console.mixed_width "$1")}"
 }
 
 console.item.title() {
-  console.indent $1 "${*:2}"
+  console.indent "$1" "${*:2}"
   _CONSOLE_INDENT_DEPTH=$(($1 + 1))
 }
 
 console.item.item() {
-  console.indent ${_CONSOLE_INDENT_DEPTH} "${*}"
+  console.indent "${_CONSOLE_INDENT_DEPTH}" "${*}"
 }
 
 console.item.mid() {

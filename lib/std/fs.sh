@@ -24,6 +24,7 @@ fs.insert() { sed -i "/$2/a\\$3" "$1" 2> /dev/null; }
 
 fs.rmline() { [[ -n $4 ]] && sed -i "${4},/$2/{/$2/d}" "$1" 2> /dev/null || sed -i "/$2/d" "$1" 2> /dev/null; }
 
+# shellcheck disable=SC2012
 fs.cleanup() { ls -t "${1}"* 2> /dev/null | tail -n +$((${2:-3} + 1)) | xargs -r rm -f; } # 保留最新的 n 个文件 (默认 3 个)
 
 fs.mktemp() { mktemp "$@" 2> /dev/null || { log.error "Failed to create temporary file" && return 1; }; }
