@@ -183,7 +183,8 @@ log.success "成功信息"
 查看 `examples/` 目录获取更多示例：
 
 - `args.sh` - 完整的子命令 CLI 工具示例
-- `test.sh` - 测试运行器示例
+- `config.sh` - 完整的配置文件使用示例
+- `main.sh` - 一般脚本示例
 
 ## License
 
