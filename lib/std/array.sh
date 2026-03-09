@@ -7,7 +7,15 @@ array.len() {
 
 array.contains() {
   local -n ref="$1"
-  [[ " ${ref[*]} " == *" $2 "* ]]
+  if (( ${#ref[@]} <= 3 )); then
+    [[ " ${ref[*]} " == *" $2 "* ]]
+  else
+    local -A lookup=()
+    for elem in "${ref[@]}"; do
+      lookup["$elem"]=1
+    done
+    [[ -v "lookup[$2]" ]]
+  fi
 }
 
 array.append() {
