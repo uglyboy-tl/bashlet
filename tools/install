@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2034
 
 set -euo pipefail
 SCRIPT_NAME="开发环境配置"
@@ -14,25 +15,25 @@ source "$SUBMODULE_DIR/lib/std/import.sh"
 import core/args
 
 main() {
-  args.init 构建开发环境
-  args.add_options "version" "v" "显示版本信息"
+	args.init 构建开发环境
+	args.add_options "version" "v" "显示版本信息"
 
-  args.process "$@"
-  args.has "-v" "--version" && usage.version && exit 0
+	args.process "$@"
+	args.has "-v" "--version" && usage.version && exit 0
 
-  mkdir -p "$LIB_DIR" "$TEST_DIR" "$TEST_DIR/test_helper"
-  cd "$PROJECT_ROOT"
-  [[ ! -d lib/core ]] && ln -rsfn "$SUBMODULE_NAME/lib/core" lib/
-  [[ ! -d lib/std ]] && ln -rsfn "$SUBMODULE_NAME/lib/std" lib/
-  [[ ! -d lib/ext ]] && ln -rsfn "$SUBMODULE_NAME/lib/ext" lib/
-  [[ ! -d test/bats ]] && ln -rsfn "$SUBMODULE_NAME/test/bats" test/
-  [[ ! -d test/test_helper/bats-assert ]] && ln -rsfn "$SUBMODULE_NAME/test/test_helper/bats-assert" test/test_helper/
-  [[ ! -d test/test_helper/bats-support ]] && ln -rsfn "$SUBMODULE_NAME/test/test_helper/bats-support" test/test_helper/
-  cp "$SUBMODULE_NAME/test/test_helper/common-setup.bash" test/test_helper/
-  [[ ! -f "src/example.sh" ]] && cp "$SUBMODULE_NAME/examples/main.sh" "src/example.sh"
-  [[ ! -f "config.toml" ]] && touch config.toml || true
+	mkdir -p "$LIB_DIR" "$TEST_DIR" "$TEST_DIR/test_helper"
+	cd "$PROJECT_ROOT"
+	[[ ! -d lib/core ]] && ln -rsfn "$SUBMODULE_NAME/lib/core" lib/
+	[[ ! -d lib/std ]] && ln -rsfn "$SUBMODULE_NAME/lib/std" lib/
+	[[ ! -d lib/ext ]] && ln -rsfn "$SUBMODULE_NAME/lib/ext" lib/
+	[[ ! -d test/bats ]] && ln -rsfn "$SUBMODULE_NAME/test/bats" test/
+	[[ ! -d test/test_helper/bats-assert ]] && ln -rsfn "$SUBMODULE_NAME/test/test_helper/bats-assert" test/test_helper/
+	[[ ! -d test/test_helper/bats-support ]] && ln -rsfn "$SUBMODULE_NAME/test/test_helper/bats-support" test/test_helper/
+	cp "$SUBMODULE_NAME/test/test_helper/common-setup.bash" test/test_helper/
+	[[ ! -f "src/example.sh" ]] && cp "$SUBMODULE_NAME/examples/main.sh" "src/example.sh"
+	[[ ! -f "config.toml" ]] && touch config.toml || true
 }
 
 if [[ ${BASH_SOURCE[0]} == "${0}" ]]; then
-  main "$@"
+	main "$@"
 fi

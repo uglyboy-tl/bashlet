@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2034
 # Bin Updater Build Script - 将所有模块合并成单一文件
 
 set -euo pipefail
@@ -18,135 +19,119 @@ ansi.disable.color
 # 分析 MAIN_FILE 的实际依赖
 # 在子进程中 source MAIN_FILE，然后返回 __loaded_modules 中的所有模块路径
 analyze_dependencies() {
-  local main_file="$1"
-  # 子进程中执行，隔离环境
-  (
-    # 切换到主文件所在目录
-    cd "$(dirname "$main_file")" 2> /dev/null || exit 1
-    local main_name="$(basename "$main_file")"
+	local main_file="$1"
+	# 子进程中执行，隔离环境
+	(
+		# 切换到主文件所在目录
+		cd "$(dirname "$main_file")" 2> /dev/null || exit 1
+		local main_name="$(basename "$main_file")"
 
-    # 重置 __loaded_modules
-    declare -ga __loaded_modules=()
-    unset SCRIPT_NAME
+		# 重置 __loaded_modules
+		declare -ga __loaded_modules=()
+		unset SCRIPT_NAME
 
-    # 执行主文件（这会触发所有的 import）
-    [[ -f $main_name ]] && . "$main_name" 2> /dev/null || true
+		# 执行主文件（这会触发所有的 import）
+		[[ -f $main_name ]] && . "$main_name" 2> /dev/null || true
 
-    [[ "${SCRIPT_NAME+x}" ]] && echo $SCRIPT_NAME || echo $"\1"
-    # 输出所有已加载的模块路径（按加载顺序）
-    for mod in "${__loaded_modules[@]}"; do
-      [[ $mod != "$PROJECT_ROOT/lib/std/import.sh" ]] && echo "$mod"
-    done
-  )
+		[[ "${SCRIPT_NAME+x}" ]] && echo "$SCRIPT_NAME" || printf '\1'
+		# 输出所有已加载的模块路径（按加载顺序）
+		for mod in "${__loaded_modules[@]}"; do
+			[[ $mod != "$PROJECT_ROOT/lib/std/import.sh" ]] && echo "$mod"
+		done
+	)
 }
 
 # 处理 lib 文件：移除 shebang、set、注释，并删除空白行
 process_sub_file() {
-  local file="$1"
-  local content=""
-  local line
+	local file="$1"
+	local content=""
+	local line
 
-  # 逐行读取文件
-  while IFS= read -r line || [ -n "$line" ]; do
-    # 删除行尾空白
-    line="${line%"${line##*[![:space:]]}"}"
+	# 逐行读取文件
+	while IFS= read -r line || [ -n "$line" ]; do
+		# 跳过 shebang 行
+		[[ $line == "#!/"* ]] && continue
 
-    # 跳过空白行
-    [[ -z $line ]] && continue
+		# 跳过 SCRIPT_NAME 行
+		[[ $line =~ ^SCRIPT_NAME=\".*\" ]] && continue
 
-    # 跳过 shebang 行
-    [[ $line == "#!/"* ]] && continue
+		# 跳过 set 行（匹配 set +/-[选项] 格式）
+		[[ $line =~ ^set[[:space:]]+[+-] ]] && continue
 
-    # 跳过 SCRIPT_NAME 行
-    [[ $line =~ ^SCRIPT_NAME=\".*\" ]] && continue
+		# 跳过 import/source 语句
+		[[ $line =~ ^[[:space:]]*(import|source)[[:space:]] ]] && continue
 
-    # 跳过 set 行（匹配 set +/-[选项] 格式）
-    [[ $line =~ ^set[[:space:]]+[+-] ]] && continue
+		# 跳过 .env 语句
+		[[ $line =~ ^[[:space:]]*\.env([[:space:]]|$) ]] && continue
 
-    # 跳过 import/source 语句
-    [[ $line =~ ^[[:space:]]*(import|source)[[:space:]] ]] && continue
+		# 如果处理后还有内容，则添加
+		[[ -n $line ]] && content="${content}${line}"$'\n'
+	done < "$file"
 
-    # 跳过 .env 语句
-    [[ $line =~ ^[[:space:]]*\.env([[:space:]]|$) ]] && continue
-
-    # 处理注释
-    if [[ $line =~ ^[[:space:]]*# ]]; then
-      # 整行都是注释，跳过
-      continue
-    else
-      # 删除真正的行尾注释（# 前面有空格）
-      # 使用参数扩展: 匹配空格+#[任意内容] 到行尾
-      [[ $line == *" #"* ]] && line="${line%% #*}"
-      # 删除可能产生的行尾空白
-      line="${line%"${line##*[![:space:]]}"}"
-    fi
-
-    # 如果处理后还有内容，则添加
-    [[ -n $line ]] && content="${content}${line}"$'\n'
-  done < "$file"
-
-  echo "$content"
+	echo "$content"
 }
 
 build() {
-  log.info "开始构建..."
-  log.info "分析依赖: $MAIN_FILE"
-  local main_path="$PROJECT_ROOT/$MAIN_FILE"
-  [[ -f $main_path ]] || {
-    log.error "主文件不存在: $MAIN_FILE"
-    return 1
-  }
+	log.info "开始构建..."
+	log.info "分析依赖: $MAIN_FILE"
+	local main_path="$PROJECT_ROOT/$MAIN_FILE"
+	[[ -f $main_path ]] || {
+		log.error "主文件不存在: $MAIN_FILE"
+		return 1
+	}
 
-  local -a all_deps=($(analyze_dependencies "$main_path"))
-  SCRIPT_NAME="${all_deps[0]}"
-  [[ $SCRIPT_NAME == $"\1" ]] && unset SCRIPT_NAME
-  log.debug "SCRIPT_NAME: ${SCRIPT_NAME:-}"
-  [[ -z $OUTPUT_FILE ]] && local name="${SCRIPT_NAME:-$(basename "$MAIN_FILE")}" && OUTPUT_FILE="${OUTPUT_DIR:-build}/${name,,}"
+	local -a all_deps=()
+	mapfile -t all_deps < <(analyze_dependencies "$main_path")
+	SCRIPT_NAME="${all_deps[0]}"
+	[[ $SCRIPT_NAME == $"\1" ]] && unset SCRIPT_NAME
+	log.debug "SCRIPT_NAME: ${SCRIPT_NAME:-}"
+	[[ -z $OUTPUT_FILE ]] && local name="${SCRIPT_NAME:-$(basename "$MAIN_FILE")}" && OUTPUT_FILE="${OUTPUT_DIR:-build}/${name,,}"
 
-  # 打开输出文件一次（使用文件描述符3）
-  > "$OUTPUT_FILE" # 先清空
-  exec 3>> "$OUTPUT_FILE"
-  # 写入文件头部
-  echo '#!/usr/bin/env bash' >&3
-  echo 'set -euo pipefail' >&3
-  echo "SCRIPT_NAME=\"${SCRIPT_NAME:-${MAIN_FILE,,}}\"" >&3
+	# 打开输出文件一次（使用文件描述符3）
+	true > "$OUTPUT_FILE" # 先清空
+	exec 3>> "$OUTPUT_FILE"
+	# 写入文件头部
+	echo '#!/usr/bin/env bash' >&3
+	echo 'set -euo pipefail' >&3
+	echo "SCRIPT_NAME=\"${SCRIPT_NAME:-${MAIN_FILE,,}}\"" >&3
 
-  # 合并依赖文件
-  for file in "${all_deps[@]:1}" "$main_path"; do
-    [[ -f $file ]] || continue
-    log.info "合并: ${file#$PROJECT_ROOT/}"
-    process_sub_file "$file" >&3
-  done
+	# 合并依赖文件
+	for file in "${all_deps[@]:1}" "$main_path"; do
+		[[ -f $file ]] || continue
+		log.info "合并: ${file#"$PROJECT_ROOT"/}"
+		process_sub_file "$file" >&3
+	done
 
-  exec 3>&-
+	exec 3>&-
 
-  chmod +x "$OUTPUT_FILE"
-  # 获取文件大小（避免子进程）
-  local -i size bytes
-  bytes=$(stat -c%s "$OUTPUT_FILE" 2> /dev/null || stat -f%z "$OUTPUT_FILE" 2> /dev/null)
-  if ((bytes >= 1024)); then
-    size=$((bytes / 1024))
-    log.success "完成! 大小: ${size}KB"
-  else
-    log.success "完成! 大小: ${bytes}B"
-  fi
-  log.info "最终文件: $OUTPUT_FILE"
+	shfmt -mn -w "$OUTPUT_FILE"
+	chmod +x "$OUTPUT_FILE"
+	# 获取文件大小（避免子进程）
+	local -i size bytes
+	bytes=$(stat -c%s "$OUTPUT_FILE" 2> /dev/null || stat -f%z "$OUTPUT_FILE" 2> /dev/null)
+	if ((bytes >= 1024)); then
+		size=$((bytes / 1024))
+		log.success "完成! 大小: ${size}KB"
+	else
+		log.success "完成! 大小: ${bytes}B"
+	fi
+	log.info "最终文件: $OUTPUT_FILE"
 }
 
 main() {
-  args.init "Shell 脚本打包工具"
-  args.add_options "version" "v" "显示版本信息"
-  args.add_options "arg" "脚本源文件" "待编译脚本的入口文件（默认为 main.sh）"
-  args.add_options "output" "o" "输出文件" "STRING"
-  args.process "$@"
-  args.has "-v" "--version" && usage.version && exit 0
-  declare -n args=$(args.args)
-  [[ ${#args[@]} -gt 0 ]] && MAIN_FILE="${args[0]}" || MAIN_FILE="main.sh"
-  OUTPUT_FILE=$(args.get "-o" "--output" 2> /dev/null) || OUTPUT_FILE=""
-  build
+	args.init "Shell 脚本打包工具"
+	args.add_options "version" "v" "显示版本信息"
+	args.add_options "arg" "脚本源文件" "待编译脚本的入口文件（默认为 main.sh）"
+	args.add_options "output" "o" "输出文件" "STRING"
+	args.process "$@"
+	args.has "-v" "--version" && usage.version && exit 0
+	declare -n args=$(args.args)
+	[[ ${#args[@]} -gt 0 ]] && MAIN_FILE="${args[0]}" || MAIN_FILE="main.sh"
+	OUTPUT_FILE=$(args.get "-o" "--output" 2> /dev/null) || OUTPUT_FILE=""
+	build
 }
 
 # 入口点
 if [[ ${BASH_SOURCE[0]} == "${0}" ]]; then
-  main "$@"
+	main "$@"
 fi
