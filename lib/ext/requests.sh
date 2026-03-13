@@ -16,190 +16,190 @@ declare -g _REQUESTS_CURL=""
 declare -g _REQUESTS_JQ=""
 
 requests.init() {
-  declare -ga _REQUESTS_CURL_EXTRA=("$@")
+	declare -ga _REQUESTS_CURL_EXTRA=("$@")
 
-  system.command.required "curl" && _REQUESTS_CURL="$(command -v curl)"
-  system.command.required "jq" && _REQUESTS_JQ="$(command -v jq)"
+	system.command.required "curl" && _REQUESTS_CURL="$(command -v curl)"
+	system.command.required "jq" && _REQUESTS_JQ="$(command -v jq)"
 
-  _REQUESTS_HEADERS=(
-    ["Accept"]="*/*"
-    ["Accept-Encoding"]="gzip, deflate"
-    ["Connection"]="keep-alive"
-  )
+	_REQUESTS_HEADERS=(
+		["Accept"]="*/*"
+		["Accept-Encoding"]="gzip, deflate"
+		["Connection"]="keep-alive"
+	)
 
-  log.debug "requests module initialized: curl=$_REQUESTS_CURL, jq=$_REQUESTS_JQ"
-  return 0
+	log.debug "requests module initialized: curl=$_REQUESTS_CURL, jq=$_REQUESTS_JQ"
+	return 0
 }
 
 requests.curl.check() {
-  [[ -n $_REQUESTS_CURL ]] || _REQUESTS_CURL="$(command -v curl)"
+	[[ -n $_REQUESTS_CURL ]] || _REQUESTS_CURL="$(command -v curl)"
 }
 
 requests.jq.check() {
-  [[ -n $_REQUESTS_JQ ]] || _REQUESTS_JQ="$(command -v jq)"
+	[[ -n $_REQUESTS_JQ ]] || _REQUESTS_JQ="$(command -v jq)"
 }
 
 requests.curl.configure() {
-  local array_name="$1"
-  local timeout="${2:-}"
+	local array_name="$1"
+	local timeout="${2:-}"
 
-  [[ -n $timeout ]] && array.append "$array_name" "--max-time" "$timeout"
-  array.append "$array_name" "-A" "$_REQUESTS_USER_AGENT"
+	[[ -n $timeout ]] && array.append "$array_name" "--max-time" "$timeout"
+	array.append "$array_name" "-A" "$_REQUESTS_USER_AGENT"
 
-  local key
-  for key in "${!_REQUESTS_HEADERS[@]}"; do
-    array.append "$array_name" "-H" "${key}: ${_REQUESTS_HEADERS[$key]}"
-  done
+	local key
+	for key in "${!_REQUESTS_HEADERS[@]}"; do
+		array.append "$array_name" "-H" "${key}: ${_REQUESTS_HEADERS[$key]}"
+	done
 
-  if [[ ${#_REQUESTS_AUTH[@]} -gt 0 ]]; then
-    local auth_key
-    for auth_key in "${!_REQUESTS_AUTH[@]}"; do
-      array.append "$array_name" "-H" "${auth_key}: ${_REQUESTS_AUTH[$auth_key]}"
-    done
-  fi
+	if [[ ${#_REQUESTS_AUTH[@]} -gt 0 ]]; then
+		local auth_key
+		for auth_key in "${!_REQUESTS_AUTH[@]}"; do
+			array.append "$array_name" "-H" "${auth_key}: ${_REQUESTS_AUTH[$auth_key]}"
+		done
+	fi
 }
 
 requests.request.build() {
-  local -n cmd_ref="$1"
-  local -r method="$2"
-  local -r url="$3"
-  local -r body="$4"
-  local -r content_type="${5:-$(requests.content_type.detect "$4")}"
+	local -n cmd_ref="$1"
+	local -r method="$2"
+	local -r url="$3"
+	local -r body="$4"
+	local -r content_type="${5:-$(requests.content_type.detect "$4")}"
 
-  cmd_ref=("$_REQUESTS_CURL" "-s" "--compressed" "-X" "$method")
-  cmd_ref+=("${_REQUESTS_CURL_EXTRA[@]}")
+	cmd_ref=("$_REQUESTS_CURL" "-s" "--compressed" "-X" "$method")
+	cmd_ref+=("${_REQUESTS_CURL_EXTRA[@]}")
 
-  requests.curl.configure cmd_ref "$_REQUESTS_TIMEOUT"
+	requests.curl.configure cmd_ref "$_REQUESTS_TIMEOUT"
 
-  if [[ -n $body ]]; then
-    cmd_ref+=("-d" "$body")
-    [[ -n $content_type ]] && cmd_ref+=("-H" "Content-Type: $content_type")
-  fi
+	if [[ -n $body ]]; then
+		cmd_ref+=("-d" "$body")
+		[[ -n $content_type ]] && cmd_ref+=("-H" "Content-Type: $content_type")
+	fi
 
-  local full_url="$url"
-  [[ -n $_REQUESTS_BASE_URL ]] && full_url="${_REQUESTS_BASE_URL}${url}"
-  cmd_ref+=("$full_url")
+	local full_url="$url"
+	[[ -n $_REQUESTS_BASE_URL ]] && full_url="${_REQUESTS_BASE_URL}${url}"
+	cmd_ref+=("$full_url")
 }
 
 requests.request() {
-  local -r method="$1"
-  local -r url="$2"
-  local -r body="$3"
-  local -r content_type="$4"
+	local -r method="$1"
+	local -r url="$2"
+	local -r body="$3"
+	local -r content_type="$4"
 
-  requests.curl.check
-  requests.jq.check
+	requests.curl.check
+	requests.jq.check
 
-  local curl_cmd
-  requests.request.build curl_cmd "$method" "$url" "$body" "$content_type" || return 1
+	local curl_cmd
+	requests.request.build curl_cmd "$method" "$url" "$body" "$content_type" || return 1
 
-  # 创建临时文件
-  local temp_body="$(fs.mktemp)" || return 1
-  local temp_headers="$(fs.mktemp)" || return 1
+	# 创建临时文件
+	local temp_body="$(fs.mktemp)" || return 1
+	local temp_headers="$(fs.mktemp)" || return 1
 
-  trap 'rm -f "${temp_body:-}" "${temp_headers:-}"' EXIT
+	trap 'rm -f "${temp_body:-}" "${temp_headers:-}"' EXIT
 
-  # 执行 curl 命令
-  local status_code=$("${curl_cmd[@]}" -w "%{http_code}" -D "$temp_headers" -o "$temp_body" 2> /dev/null)
+	# 执行 curl 命令
+	local status_code=$("${curl_cmd[@]}" -w "%{http_code}" -D "$temp_headers" -o "$temp_body" 2> /dev/null)
 
-  local body_base64="$(string.base64.encode "$temp_body")"
+	local body_base64="$(string.base64.encode "$temp_body")"
 
-  # 解析响应头为 JSON (使用 jq)
-  local headers_json="$("$_REQUESTS_JQ" -Rs 'split("\n") | map(select(length > 0 and test(":"))) | map(split(": ") | {(.[0]): .[1] | rtrimstr("\r")}) | add // {}' "$temp_headers")"
+	# 解析响应头为 JSON (使用 jq)
+	local headers_json="$("$_REQUESTS_JQ" -Rs 'split("\n") | map(select(length > 0 and test(":"))) | map(split(": ") | {(.[0]): .[1] | rtrimstr("\r")}) | add // {}' "$temp_headers")"
 
-  # 判断是否成功 (2xx 状态码)
-  local success="false"
-  [[ $status_code =~ ^2[0-9][0-9]$ ]] && success="true"
+	# 判断是否成功 (2xx 状态码)
+	local success="false"
+	[[ $status_code =~ ^2[0-9][0-9]$ ]] && success="true"
 
-  # 构建 JSON 响应
-  echo "{\"status_code\":$status_code,\"headers\":$headers_json,\"body\":\"$body_base64\",\"success\":$success}"
+	# 构建 JSON 响应
+	echo "{\"status_code\":$status_code,\"headers\":$headers_json,\"body\":\"$body_base64\",\"success\":$success}"
 }
 
 requests.download() {
-  requests.curl.check
-  local curl_cmd=("$_REQUESTS_CURL" "-L")
-  requests.curl.configure curl_cmd
-  curl_cmd+=("-o" "$2")
+	requests.curl.check
+	local curl_cmd=("$_REQUESTS_CURL" "-L")
+	requests.curl.configure curl_cmd
+	curl_cmd+=("-o" "$2")
 
-  # 是否显示进度
-  [[ ${3:-true} == "true" ]] && curl_cmd+=("--progress-bar")
+	# 是否显示进度
+	[[ ${3:-true} == "true" ]] && curl_cmd+=("--progress-bar")
 
-  # 是否启用断点续传
-  [[ ${4:-true} == "true" ]] && curl_cmd+=("-C" "-")
+	# 是否启用断点续传
+	[[ ${4:-true} == "true" ]] && curl_cmd+=("-C" "-")
 
-  # 执行下载
-  "${curl_cmd[@]}" "$1"
+	# 执行下载
+	"${curl_cmd[@]}" "$1"
 }
 
 requests.sse() {
-  local -r callback="$1"
-  local -r method="$2"
-  local -r url="$3"
-  local -r body="$4"
-  local -r content_type="${5:-$(requests.content_type.detect "$4")}"
+	local -r callback="$1"
+	local -r method="$2"
+	local -r url="$3"
+	local -r body="$4"
+	local -r content_type="${5:-$(requests.content_type.detect "$4")}"
 
-  requests.curl.check
+	requests.curl.check
 
-  local curl_cmd
-  requests.request.build curl_cmd "$method" "$url" "$body" "$content_type" || return 1
-  curl_cmd+=("-N")
+	local curl_cmd
+	requests.request.build curl_cmd "$method" "$url" "$body" "$content_type" || return 1
+	curl_cmd+=("-N")
 
-  "${curl_cmd[@]}" | while IFS= read -r line; do
-    [[ $line =~ ^data:\ (.+) ]] && "$callback" "${BASH_REMATCH[1]}"
-  done
+	"${curl_cmd[@]}" | while IFS= read -r line; do
+		[[ $line =~ ^data:\ (.+) ]] && "$callback" "${BASH_REMATCH[1]}"
+	done
 }
 
 # URL 编码辅助函数
 requests._urlencode() {
-  "$_REQUESTS_JQ" -nr --arg str "$1" '$str | @uri'
+	"$_REQUESTS_JQ" -nr --arg str "$1" '$str | @uri'
 }
 
 # 自动检测 Content-Type 辅助函数
 requests.content_type.detect() {
-  # 检查是否以 { 开头以 } 结尾（简单 JSON 检测）
-  [[ $1 =~ ^\{.*\}$ ]] && echo "application/json" && return 0
-  [[ $1 =~ ^\[.*\]$ ]] && echo "application/json" && return 0
-  [[ $1 =~ ^[a-zA-Z0-9_-]+=[^\&]+(\&[a-zA-Z0-9_-]+=[^\&]+)*$ ]] && echo "application/x-www-form-urlencoded" && return 0
-  echo ""
+	# 检查是否以 { 开头以 } 结尾（简单 JSON 检测）
+	[[ $1 =~ ^\{.*\}$ ]] && echo "application/json" && return 0
+	[[ $1 =~ ^\[.*\]$ ]] && echo "application/json" && return 0
+	[[ $1 =~ ^[a-zA-Z0-9_-]+=[^\&]+(\&[a-zA-Z0-9_-]+=[^\&]+)*$ ]] && echo "application/x-www-form-urlencoded" && return 0
+	echo ""
 }
 
 requests.body.build() {
-  local -n ref="$1"
-  local first=true
-  requests.jq.check
-  if [[ ${2:-form} == "json" ]]; then
-    printf "{"
-    for key in "${!ref[@]}"; do
-      $first || printf ","
-      printf '"%s":"%s"' "$key" "${ref[$key]}"
-      first=false
-    done
-    printf "}\n"
-  else
-    for key in "${!ref[@]}"; do
-      $first || printf "&"
-      printf '%s=%s' "$(requests._urlencode "$key")" "$(requests._urlencode "${ref[$key]}")"
-      first=false
-    done
-    printf "\n"
-  fi
+	local -n ref="$1"
+	local first=true
+	requests.jq.check
+	if [[ ${2:-form} == "json" ]]; then
+		printf "{"
+		for key in "${!ref[@]}"; do
+			$first || printf ","
+			printf '"%s":"%s"' "$key" "${ref[$key]}"
+			first=false
+		done
+		printf "}\n"
+	else
+		for key in "${!ref[@]}"; do
+			$first || printf "&"
+			printf '%s=%s' "$(requests._urlencode "$key")" "$(requests._urlencode "${ref[$key]}")"
+			first=false
+		done
+		printf "\n"
+	fi
 }
 
 # 构建查询字符串 - 将参数数组转换为 URL 编码的查询字符串
 requests.query.build() {
-  local query="" first=true
-  for param in "$@"; do
-    # 分割 key=value
-    local key="${param%%=*}" value="${param#*=}"
-    # 构建查询字符串
-    if $first; then
-      query="?$(requests._urlencode "$key")=$(requests._urlencode "$value")"
-      first=false
-    else
-      query="${query}&$(requests._urlencode "$key")=$(requests._urlencode "$value")"
-    fi
-  done
-  echo "$query"
+	local query="" first=true
+	for param in "$@"; do
+		# 分割 key=value
+		local key="${param%%=*}" value="${param#*=}"
+		# 构建查询字符串
+		if $first; then
+			query="?$(requests._urlencode "$key")=$(requests._urlencode "$value")"
+			first=false
+		else
+			query="${query}&$(requests._urlencode "$key")=$(requests._urlencode "$value")"
+		fi
+	done
+	echo "$query"
 }
 
 # GET 请求 - 接受 URL 和可选的查询参数
@@ -233,8 +233,8 @@ requests.text() { "$_REQUESTS_JQ" -r '.body' <<< "$1" | string.base64.decode; }
 
 # 提取 JSON 响应 (可选 JSONPath)
 requests.json() {
-  local -r body_text="$(requests.text "$1")"
-  [[ -n ${2:-} ]] && "$_REQUESTS_JQ" -r "$2" <<< "$body_text" || echo "$body_text"
+	local -r body_text="$(requests.text "$1")"
+	[[ -n ${2:-} ]] && "$_REQUESTS_JQ" -r "$2" <<< "$body_text" || echo "$body_text"
 }
 
 # 检查是否成功 (2xx)
@@ -248,20 +248,20 @@ requests.timeout() { string.natural.check "$1" && _REQUESTS_TIMEOUT="$1" || { lo
 
 # 设置默认请求头 (可变参数: key1 value1 key2 value2 ...)
 requests.headers.append() {
-  # 接受键值对参数
-  local key="${1:-}"
-  shift
+	# 接受键值对参数
+	local key="${1:-}"
+	shift
 
-  while [[ -n $key ]]; do
-    local value="$1"
-    shift
-    _REQUESTS_HEADERS["$key"]="$value"
-    log.debug "default header set: $key: $value"
+	while [[ -n $key ]]; do
+		local value="$1"
+		shift
+		_REQUESTS_HEADERS["$key"]="$value"
+		log.debug "default header set: $key: $value"
 
-    # 获取下一个键值对
-    key="${1:-}"
-    shift || true
-  done
+		# 获取下一个键值对
+		key="${1:-}"
+		shift || true
+	done
 }
 
 # 设置基础 URL (用于相对路径请求)

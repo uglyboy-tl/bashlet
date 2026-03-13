@@ -11,8 +11,8 @@ string.escape.regex() { printf '%s' "${1:-}" | sed 's/[].[\\^$*+?{}()|]/\\&/g; s
 string.escape.sed() { printf '%s' "${1:-}" | sed 's/\\/\\\\/g; s/&/\\&/g; s/|/\\|/g'; }
 
 string.trim() {
-  local s="${1#"${1%%[![:space:]]*}"}"
-  echo "${s%"${s##*[![:space:]]}"}"
+	local s="${1#"${1%%[![:space:]]*}"}"
+	echo "${s%"${s##*[![:space:]]}"}"
 }
 
 string.int.check() { [[ $1 =~ ^-?[0-9]+$ ]]; }
