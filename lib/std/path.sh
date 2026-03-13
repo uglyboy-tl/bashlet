@@ -5,6 +5,8 @@
 : "${XDG_DATA_HOME:=$HOME/.local/share}"
 : "${XDG_STATE_HOME:=$HOME/.local/state}"
 : "${XDG_CACHE_HOME:=$HOME/.cache}"
+: "${SCRIPT_NAME:=}"
+_PATH_LOCAL_DIR="local"
 
 path.script_name() {
 	echo "${SCRIPT_NAME,,}"
@@ -31,6 +33,11 @@ path.cache_dir() {
 }
 
 path.log_dir() {
-	: "${SCRIPT_LOG_DIR:=$(path.state_dir)/log}"
+	: "${SCRIPT_LOG_DIR:=$(path.state_dir)/logs}"
 	echo "$SCRIPT_LOG_DIR"
+}
+
+path.local_config_dir() {
+	: "${SCRIPT_LOCAL_CONFIG_DIR:=$XDG_CONFIG_HOME/$_PATH_LOCAL_DIR}"
+	echo "$SCRIPT_LOCAL_CONFIG_DIR"
 }
