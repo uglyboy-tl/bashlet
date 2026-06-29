@@ -61,9 +61,6 @@ process_sub_file() {
 		# 跳过 import/source 语句
 		[[ $line =~ ^[[:space:]]*(import|source)[[:space:]] ]] && continue
 
-		# 跳过 .env 语句
-		[[ $line =~ ^[[:space:]]*\.env([[:space:]]|$) ]] && continue
-
 		# 如果处理后还有内容，则添加
 		[[ -n $line ]] && content="${content}${line}"$'\n'
 	done < "$file"

@@ -28,4 +28,4 @@ import() {
 	done
 }
 
-.env() { [[ -f .env ]] && source .env || true; }
+.env() { [[ -f .env ]] && source .env || true; [[ -v BASH_SOURCE[1] ]] && [[ -f "${BASH_SOURCE[1]%/*}/.env" ]] && source "${BASH_SOURCE[1]%/*}/.env" || true; }

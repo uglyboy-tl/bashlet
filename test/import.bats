@@ -254,3 +254,67 @@ EOF
 	# 清理
 	rm -rf deep
 }
+
+@test ".env - 从运行目录加载 .env" {
+	local tmpdir
+	tmpdir=$(mktemp -d)
+	cd "$tmpdir"
+	echo "TEST_VAR=hello" > .env
+
+	[[ -z "${TEST_VAR:-}" ]]
+	.env
+	[[ "$TEST_VAR" == "hello" ]]
+
+	rm -rf "$tmpdir"
+}
+
+@test ".env - 从脚本所在目录加载 .env" {
+	local tmpdir import_path
+	tmpdir=$(mktemp -d)
+	import_path="$PROJECT_ROOT/lib/std/import.sh"
+
+	echo "TEST_VAR=script_value" > "$tmpdir/.env"
+
+	cat > "$tmpdir/helper.sh" << 'SH'
+source "$1"
+.env
+echo "TEST_VAR=${TEST_VAR:-unset}"
+SH
+
+	run bash "$tmpdir/helper.sh" "$import_path"
+	[[ "$status" -eq 0 ]]
+	[[ "$output" == "TEST_VAR=script_value" ]]
+
+	rm -rf "$tmpdir"
+}
+
+@test ".env - 脚本目录 .env 优先于运行目录" {
+	local tmpdir rundir import_path
+	tmpdir=$(mktemp -d)
+	rundir=$(mktemp -d)
+	import_path="$PROJECT_ROOT/lib/std/import.sh"
+
+	echo "TEST_VAR=rundir_value" > "$rundir/.env"
+	echo "TEST_VAR=script_value" > "$tmpdir/.env"
+
+	cat > "$tmpdir/helper.sh" << 'SH'
+source "$1"
+.env
+echo "TEST_VAR=${TEST_VAR:-unset}"
+SH
+
+	run bash "$tmpdir/helper.sh" "$import_path"
+	[[ "$status" -eq 0 ]]
+	[[ "$output" == "TEST_VAR=script_value" ]]
+
+	rm -rf "$tmpdir" "$rundir"
+}
+
+@test ".env - 无 .env 文件不报错" {
+	local tmpdir
+	tmpdir=$(mktemp -d)
+	cd "$tmpdir"
+	run .env
+	[[ "$status" -eq 0 ]]
+	rm -rf "$tmpdir"
+}
