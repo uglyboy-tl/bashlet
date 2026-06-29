@@ -42,6 +42,7 @@ requests.jq.check() {
 requests.curl.configure() {
 	local array_name="$1"
 	local timeout="${2:-}"
+	local include_auth="${3:-true}"
 
 	[[ -n $timeout ]] && array.append "$array_name" "--max-time" "$timeout"
 	array.append "$array_name" "-A" "$_REQUESTS_USER_AGENT"
@@ -51,7 +52,7 @@ requests.curl.configure() {
 		array.append "$array_name" "-H" "${key}: ${_REQUESTS_HEADERS[$key]}"
 	done
 
-	if [[ ${#_REQUESTS_AUTH[@]} -gt 0 ]]; then
+	if [[ $include_auth == "true" && ${#_REQUESTS_AUTH[@]} -gt 0 ]]; then
 		local auth_key
 		for auth_key in "${!_REQUESTS_AUTH[@]}"; do
 			array.append "$array_name" "-H" "${auth_key}: ${_REQUESTS_AUTH[$auth_key]}"
@@ -117,8 +118,10 @@ requests.request() {
 
 requests.download() {
 	requests.curl.check
-	local curl_cmd=("$_REQUESTS_CURL" "-L")
-	requests.curl.configure curl_cmd
+	local curl_cmd=("$_REQUESTS_CURL" "-L" "--globoff")
+	# 默认不附加认证头，与 requests.get()/post() 行为不同，
+	# 如需认证请使用 URL 参数或直接调用 requests.request()
+	requests.curl.configure curl_cmd "" false
 	curl_cmd+=("-o" "$2")
 
 	# 是否显示进度
