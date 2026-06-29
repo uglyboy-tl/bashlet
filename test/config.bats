@@ -905,7 +905,7 @@ teardown() {
 		echo 'key.with.dots = "value3"'
 	} > /tmp/test_loose_special_$$.toml
 	config.load /tmp/test_loose_special_$$.toml
-	[ "${_CONFIG_VALUES[key - with - dash]}" = "value1" ]
+	[ "${_CONFIG_VALUES[key-with-dash]}" = "value1" ]
 	[ "${_CONFIG_VALUES[key_with_underscore]}" = "value2" ]
 	[ "${_CONFIG_VALUES[key.with.dots]}" = "value3" ]
 }
