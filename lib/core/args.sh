@@ -116,7 +116,8 @@ args.parse() {
 
 args.verify() {
 	for option in "${_ARGS_OPTS[@]}"; do
-		local opt="${option##*-}" another
+		local opt="${option#--}" another
+		opt="${opt#-}"
 		array.contains _ARGS_OPTIONS "$opt" || {
 			log.error "未知选项: \"$option\""
 			return 1
