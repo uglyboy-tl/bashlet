@@ -838,6 +838,20 @@ teardown() {
 	[ -f /tmp/test_array_update_$$.toml ]
 }
 
+@test "config.update: add to new section without corrupting existing sections" {
+	config.array.register "sources" "repo" "" "string"
+	{
+		echo "[sources.existing]"
+		echo 'repo = "org/existing"'
+		echo ""
+		echo "[agents.opencode]"
+		echo 'user_dir = "~/.config/opencode/skills"'
+	} > /tmp/test_update_bug_$$.toml
+	config.update "sources" "NEW" "repo" "org/new" /tmp/test_update_bug_$$.toml
+	grep -q 'sources.NEW' /tmp/test_update_bug_$$.toml
+	grep -q 'repo = "org/existing"' /tmp/test_update_bug_$$.toml
+}
+
 # ========== 宽松模式 (loose mode) 测试 ==========
 
 @test "config.loose: enable loose mode" {
