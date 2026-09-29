@@ -8,6 +8,7 @@ PROJECT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 source "$PROJECT_ROOT/lib/std/import.sh"
 
 import core/config
+import core/config.persist
 
 main() {
   # 清理临时文件
@@ -61,7 +62,7 @@ EOF
   filter_keys=("app.name" "app.version")
   declare -A filter_arrays=([servers]="host port")
 
-  config.save config-saved.toml filter_keys filter_arrays
+  config.persist.save config-saved.toml filter_keys filter_arrays
 
   # 7. 清理
   rm -f config-example.toml config-saved.toml 2> /dev/null || true
