@@ -78,3 +78,9 @@ _build_fixture() {
 	[[ -x $out ]]
 	bash -n "$out"
 }
+
+@test "build 无法解析的 import 时失败并报错" {
+	run env OUTPUT_DIR="$OUT_DIR" "$PROJECT_ROOT/tools/build" "$FIXTURES/bad_import.sh"
+	[ "$status" -ne 0 ]
+	[[ $output == *"无法解析 import"* ]]
+}

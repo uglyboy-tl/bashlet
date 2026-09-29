@@ -41,7 +41,11 @@ _collect_deps() {
 	while IFS= read -r mod; do
 		[[ -z $mod ]] && continue
 		resolved="$_LIB_DIR/$mod.sh"
-		[[ -f $resolved ]] && _collect_deps "$resolved"
+		[[ -f $resolved ]] || {
+			log.error "无法解析 import: $mod（来自 ${file#"$PROJECT_ROOT"/}）"
+			return 1
+		}
+		_collect_deps "$resolved" || return 1
 	done < <(extract_imports "$file")
 	_BUILD_ORDER+=("$file")
 }
@@ -51,7 +55,7 @@ _collect_deps() {
 analyze_dependencies() {
 	_BUILD_SEEN=()
 	_BUILD_ORDER=()
-	_collect_deps "$1"
+	_collect_deps "$1" || return 1
 	printf '%s\n' "${_BUILD_ORDER[@]}"
 }
 
@@ -101,8 +105,13 @@ build() {
 	}
 	log.info "分析依赖: $MAIN_FILE"
 
+	local dep_list
+	dep_list=$(analyze_dependencies "$main_path") || {
+		log.error "依赖解析失败，中止构建"
+		return 1
+	}
 	local -a deps=()
-	mapfile -t deps < <(analyze_dependencies "$main_path")
+	mapfile -t deps <<< "$dep_list"
 	[[ ${#deps[@]} -gt 0 ]] || {
 		log.error "未解析到任何依赖"
 		return 1
