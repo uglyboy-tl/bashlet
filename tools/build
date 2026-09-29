@@ -1,117 +1,141 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2034
-# Bin Updater Build Script - 将所有模块合并成单一文件
+# bashlet 脚本整合器：把入口脚本与其 import 的模块合并成单一可执行文件。
+# 载荷约束：产物大小即脚本的运行时代价，因此依赖按需内联、可选用 shfmt 压缩。
 
 set -euo pipefail
 SCRIPT_NAME="脚本整合器"
-VERSION="3.0.0"
+VERSION="4.0.0"
 LC_COLLATE=C
 PROJECT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 source "$PROJECT_ROOT/lib/std/import.sh"
 .env
 import std/ansi
+import std/system
 import core/log
 import core/args
 
 # 确保颜色变量被定义（在非交互模式下 ansi.enable.color 不会执行）
 ansi.disable.color
 
-# 分析 MAIN_FILE 的实际依赖
-# 在子进程中 source MAIN_FILE，然后返回 __loaded_modules 中的所有模块路径
-analyze_dependencies() {
-	local main_file="$1"
-	# 子进程中执行，隔离环境
-	(
-		# 切换到主文件所在目录
-		cd "$(dirname "$main_file")" 2> /dev/null || exit 1
-		local main_name="$(basename "$main_file")"
-
-		# 重置 __loaded_modules
-		declare -ga __loaded_modules=()
-		unset SCRIPT_NAME
-
-		# 执行主文件（这会触发所有的 import）
-		[[ -f $main_name ]] && . "$main_name" 2> /dev/null || true
-
-		[[ "${SCRIPT_NAME+x}" ]] && echo "$SCRIPT_NAME" || printf '\1'
-		# 输出所有已加载的模块路径（按加载顺序）
-		for mod in "${__loaded_modules[@]}"; do
-			[[ $mod != "$PROJECT_ROOT/lib/std/import.sh" ]] && echo "$mod"
+# 读取一个文件里的 import 目标：去掉行尾注释，支持一行多个模块
+extract_imports() {
+	local file="$1" line rest mod
+	while IFS= read -r line || [[ -n $line ]]; do
+		[[ $line =~ ^[[:space:]]*import[[:space:]]+(.*)$ ]] || continue
+		rest="${BASH_REMATCH[1]%%#*}"
+		for mod in $rest; do
+			printf '%s\n' "$mod"
 		done
-	)
+	done < "$file"
 }
 
-# 处理 lib 文件：移除 shebang、set、注释，并删除空白行
-process_sub_file() {
-	local file="$1"
-	local content=""
-	local line
+declare -A _BUILD_SEEN=()
+declare -a _BUILD_ORDER=()
 
-	# 逐行读取文件
-	while IFS= read -r line || [ -n "$line" ]; do
-		# 跳过 shebang 行
-		[[ $line == "#!/"* ]] && continue
+# 深度优先后序收集：先内联依赖，再内联依赖它们的文件
+_collect_deps() {
+	local file="$1" mod resolved
+	[[ -n ${_BUILD_SEEN[$file]:-} ]] && return 0
+	_BUILD_SEEN[$file]=1
+	while IFS= read -r mod; do
+		[[ -z $mod ]] && continue
+		resolved="$_LIB_DIR/$mod.sh"
+		[[ -f $resolved ]] && _collect_deps "$resolved"
+	done < <(extract_imports "$file")
+	_BUILD_ORDER+=("$file")
+}
 
-		# 跳过 SCRIPT_NAME 行
-		[[ $line =~ ^SCRIPT_NAME=\".*\" ]] && continue
+# 静态解析入口脚本的依赖（不执行目标脚本，避免 pass/config.load 等副作用）
+# 输出：按内联顺序排列的文件绝对路径，入口文件在最后
+analyze_dependencies() {
+	_BUILD_SEEN=()
+	_BUILD_ORDER=()
+	_collect_deps "$1"
+	printf '%s\n' "${_BUILD_ORDER[@]}"
+}
 
-		# 跳过 set 行（匹配 set +/-[选项] 格式）
-		[[ $line =~ ^set[[:space:]]+[+-] ]] && continue
-
-		# 跳过 import/source 语句
-		[[ $line =~ ^[[:space:]]*(import|source)[[:space:]] ]] && continue
-
-		# 如果处理后还有内容，则添加
-		[[ -n $line ]] && content="${content}${line}"$'\n'
+# 剥离顶层指令行。只匹配行首无缩进的语句，避免误伤函数体里缩进的 source/import。
+# keep_env=false 时也剥掉 .env 调用：产物不应读取本地 .env，环境变量由真实环境提供。
+# keep_env=true（入口脚本含注释指令 `# build:keep-env`）时保留 .env。
+strip_directives() {
+	local file="$1" keep_env="${2:-false}" line
+	while IFS= read -r line || [[ -n $line ]]; do
+		[[ $keep_env != true ]] && [[ $line =~ ^\.env([[:space:]]|$) ]] && continue
+		[[ $line =~ ^(#!|set[[:space:]]|SCRIPT_NAME=|source[[:space:]]|import[[:space:]]) ]] && continue
+		printf '%s\n' "$line"
 	done < "$file"
+}
 
-	echo "$content"
+get_script_name() {
+	sed -n 's/^SCRIPT_NAME="\(.*\)"/\1/p' "$1" | head -1
+}
+
+# 可选压缩：有 shfmt 就用 minify，没有则保持原样（产物可执行，只是体积偏大）
+minify_output() {
+	local out="$1"
+	if system.command.exist shfmt; then
+		shfmt -mn -w "$out"
+	else
+		log.warn "未找到 shfmt，跳过压缩（产物可执行，但体积偏大）"
+	fi
+}
+
+report_size() {
+	local out="$1" bytes
+	bytes=$(stat -c%s "$out" 2> /dev/null || stat -f%z "$out" 2> /dev/null)
+	if ((bytes >= 1024)); then
+		log.success "完成! 大小: $((bytes / 1024))KB (${bytes} bytes)"
+	else
+		log.success "完成! 大小: ${bytes}B"
+	fi
 }
 
 build() {
 	log.info "开始构建..."
-	log.info "分析依赖: $MAIN_FILE"
-	local main_path="$PROJECT_ROOT/$MAIN_FILE"
+	local main_path="$MAIN_FILE"
+	[[ $main_path == /* ]] || main_path="$PROJECT_ROOT/$MAIN_FILE"
 	[[ -f $main_path ]] || {
 		log.error "主文件不存在: $MAIN_FILE"
 		return 1
 	}
+	log.info "分析依赖: $MAIN_FILE"
 
-	local -a all_deps=()
-	mapfile -t all_deps < <(analyze_dependencies "$main_path")
-	SCRIPT_NAME="${all_deps[0]}"
-	[[ $SCRIPT_NAME == $"\1" ]] && unset SCRIPT_NAME
-	log.debug "SCRIPT_NAME: ${SCRIPT_NAME:-}"
-	[[ -z $OUTPUT_FILE ]] && local name="${SCRIPT_NAME:-$(basename "$MAIN_FILE")}" && OUTPUT_FILE="${OUTPUT_DIR:-build}/${name,,}"
+	local -a deps=()
+	mapfile -t deps < <(analyze_dependencies "$main_path")
+	[[ ${#deps[@]} -gt 0 ]] || {
+		log.error "未解析到任何依赖"
+		return 1
+	}
 
-	# 打开输出文件一次（使用文件描述符3）
-	true > "$OUTPUT_FILE" # 先清空
-	exec 3>> "$OUTPUT_FILE"
-	# 写入文件头部
-	echo '#!/usr/bin/env bash' >&3
-	echo 'set -euo pipefail' >&3
-	echo "SCRIPT_NAME=\"${SCRIPT_NAME:-${MAIN_FILE,,}}\"" >&3
+	SCRIPT_NAME="$(get_script_name "$main_path")"
+	[[ -n $SCRIPT_NAME ]] || SCRIPT_NAME="$(basename "${MAIN_FILE%.sh}")"
+	[[ -n ${OUTPUT_FILE:-} ]] || OUTPUT_FILE="${OUTPUT_DIR:-$PROJECT_ROOT/build}/${SCRIPT_NAME,,}"
+	mkdir -p "$(dirname "$OUTPUT_FILE")"
 
-	# 合并依赖文件
-	for file in "${all_deps[@]:1}" "$main_path"; do
-		[[ -f $file ]] || continue
+	# 入口脚本可用注释指令 `# build:keep-env` 选择保留 .env 加载
+	local keep_env=false
+	grep -qE '^#[[:space:]]*build:keep-env' "$main_path" && keep_env=true
+
+	{
+		echo '#!/usr/bin/env bash'
+		echo 'set -euo pipefail'
+		echo "SCRIPT_NAME=\"$SCRIPT_NAME\""
+		echo
+		if [[ $keep_env == true ]]; then
+			declare -f .env
+		fi
+	} > "$OUTPUT_FILE"
+
+	local file
+	for file in "${deps[@]}"; do
 		log.info "合并: ${file#"$PROJECT_ROOT"/}"
-		process_sub_file "$file" >&3
+		strip_directives "$file" "$keep_env" >> "$OUTPUT_FILE"
 	done
 
-	exec 3>&-
-
-	shfmt -mn -w "$OUTPUT_FILE"
+	minify_output "$OUTPUT_FILE"
 	chmod +x "$OUTPUT_FILE"
-	# 获取文件大小（避免子进程）
-	local -i size bytes
-	bytes=$(stat -c%s "$OUTPUT_FILE" 2> /dev/null || stat -f%z "$OUTPUT_FILE" 2> /dev/null)
-	if ((bytes >= 1024)); then
-		size=$((bytes / 1024))
-		log.success "完成! 大小: ${size}KB"
-	else
-		log.success "完成! 大小: ${bytes}B"
-	fi
+	report_size "$OUTPUT_FILE"
 	log.info "最终文件: $OUTPUT_FILE"
 }
 
@@ -128,7 +152,6 @@ main() {
 	build
 }
 
-# 入口点
 if [[ ${BASH_SOURCE[0]} == "${0}" ]]; then
 	main "$@"
 fi
