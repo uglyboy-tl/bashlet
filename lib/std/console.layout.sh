@@ -9,6 +9,9 @@ import std/console
 # 注：标题超过缓存长度会被截断（实际标题都很短，忽略）。
 _CONSOLE_LAYOUT_UNDERLINE=$(console.repeat "=" 20)
 
+# 默认缩进:允许在未先调 item.title/section 时直接使用 item.*（set -u 安全）
+_CONSOLE_LAYOUT_DEPTH=0
+
 console.layout.section() {
 	console.stdout "$1:"
 	console.stdout "=${_CONSOLE_LAYOUT_UNDERLINE:0:$(console.display_width "$1")}"

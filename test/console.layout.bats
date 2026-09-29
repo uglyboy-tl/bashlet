@@ -28,6 +28,12 @@ setup() {
 	[[ $output == *"item content"* ]]
 }
 
+@test "console.layout.item.item - 未先调 title 也不受 set -u 影响" {
+	run bash -c 'set -euo pipefail; source "$1"; import std/console.layout; console.layout.item.item "x"' _ "$PROJECT_ROOT/lib/std/import.sh"
+	[ "$status" -eq 0 ]
+	[[ $output == *"x"* ]]
+}
+
 @test "console.layout.item.mid - 中间项目" {
 	_CONSOLE_LAYOUT_DEPTH=1
 	run console.layout.item.mid "middle item"

@@ -11,7 +11,7 @@ std/fs	2059
 std/path	938
 std/system	1055
 std/console	2252
-std/console.layout	2816
+std/console.layout	2840
 std/ansi	3288
 std/markdown	1358
 ext/requests	15545
