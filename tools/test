@@ -7,7 +7,7 @@ SCRIPT_NAME="测试运行器"
 VERSION="1.0.3"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-BATS_DIR="$(cd "test/bats" && pwd)"
+BATS_DIR="$(cd test/bats && pwd)"
 BATS_EXEC="$BATS_DIR/bin/bats"
 
 source "$PROJECT_ROOT/lib/std/import.sh"
@@ -53,8 +53,8 @@ run_tests() {
 
 	log.info "开始运行测试..."
 
-	# 切换到test目录并添加bats到PATH
-	cd "test"
+	# 切到当前目录下的 test 目录（宿主项目的测试），并把 bats 加入 PATH
+	cd test
 	export PATH="$BATS_DIR/bin:$PATH"
 
 	# 构建Bats命令
@@ -64,25 +64,19 @@ run_tests() {
 	# 运行测试
 	log.info "执行: bats $bats_args $test_path"
 
-	if eval "bats $bats_args $test_path"; then
-		local exit_code=$?
-		if [[ $exit_code -eq 0 ]]; then
-			log.success "执行成功!"
-			return 0
-		else
-			log.error "测试失败，退出码: $exit_code"
-			return $exit_code
-		fi
+	local exit_code=0
+	eval "bats $bats_args $test_path" || exit_code=$?
+	if ((exit_code == 0)); then
+		log.success "执行成功!"
 	else
-		local exit_code=$?
-		log.error "测试执行失败，退出码: $exit_code"
-		return $exit_code
+		log.error "测试失败，退出码: $exit_code"
 	fi
+	return $exit_code
 }
 
-# 获取所有测试文件列表
+# 获取当前目录 test 下的所有测试文件
 list_test_files() {
-	cd "$PROJECT_ROOT/test"
+	cd test
 	find . -name "*.bats" -not -path "./bats/*" -not -path "./test_bats/*" -not -path "./test_helper/*" | sort
 }
 
@@ -113,6 +107,7 @@ main() {
 	args.add_options "jobs" "j" "并行运行测试 (默认: 1)" "NUM"
 	args.add_options "tap" "t" "使用TAP格式输出"
 	args.add_options "count" "c" "只计算测试数量"
+	args.add_options "exclude" "x" "排除匹配路径的测试文件" "PATTERN"
 	args.add_options "arg" "测试文件/模式" "可选：指定测试文件或目录(默认: 运行所有测试)"
 	args.add_options "example" "" "# 运行所有测试"
 	args.add_options "example" "test.bats" "# 运行单个测试文件"
@@ -128,8 +123,14 @@ main() {
 	args.has "-t" "--tap" && TAP_FORMAT="true" || TAP_FORMAT="false"
 	FILTER_PATTERN=$(args.get "-f" "--filter" 2> /dev/null) || FILTER_PATTERN=""
 	JOBS=$(args.get "-j" "--jobs" 2> /dev/null) || JOBS="1"
+	EXCLUDE_PATTERN=$(args.get "-x" "--exclude" 2> /dev/null) || EXCLUDE_PATTERN=""
 	declare -n main_args=$(args.args)
 	[[ ${#main_args[@]} -ne 0 ]] && TEST_TARGET="${main_args[*]}" || TEST_TARGET="."
+
+	# --exclude：仅在默认全量运行时生效，按路径过滤测试文件
+	if [[ -n $EXCLUDE_PATTERN && $TEST_TARGET == "." ]]; then
+		TEST_TARGET=$(list_test_files | grep -v "$EXCLUDE_PATTERN" | tr '\n' ' ')
+	fi
 
 	# 检查Bats
 	check_bats
