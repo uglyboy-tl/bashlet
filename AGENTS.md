@@ -2,33 +2,72 @@
 
 bashlet 是一个 Bash 脚本开发框架，提供基础功能库。
 
+## 架构与载荷约束（最重要的约束）
+
+依赖只能向下：`core/ → std/`；`ext/` 为可选重能力。`tools/build` 会把 import 到的模块**内联进产物**，所以**模块即载荷**——加进某个模块的代码，所有 import 它的脚本都要背。
+
+- **底座必须薄**：每个脚本都 import `core/args`，而 args import `core/usage`，`core/log` import `std/console`。所以 `usage`/`log` 依赖的任何东西，全员都会背。别把可选重能力塞进这些模块。
+- **终端 vs 标记分开**：`std/console` 与 `std/markdown` 互不依赖。
+- **原语 → 组合 → 领域**：`std/console`（原语/对齐列表）→ `std/console.layout`（section/item/footer，可选）→ `core/usage`。
+- 判断某能力该不该独立成模块：**语意性 × 反冗余**权衡。详见 `docs/adr/0001-payload-constraint-module-boundaries.md`。
+
+加新模块后，用 `tools/build` 构建下游脚本，确认**不相关的脚本体积没有变大**。`test/payload.bats` 用「只 import 该模块」的最小消费者记录各模块字节基线（棘轮：只允许下降/持平）：
+
+```bash
+tools/test test/payload.bats                   # 校验
+PAYLOAD_UPDATE=1 tools/test test/payload.bats  # 增长后刷新基线
+```
+
+## 复用优先（不要重造轮子）
+
+动手前先查 `README.md` 的「函数速查」。常见意图对应的既有函数：
+
+| 想要 | 用 |
+|------|-----|
+| 判断数组/键是否存在 | `array.contains ARR V`、`map.contains MAP K` |
+| 取数组元素/长度 | `array.get ARR I`、`array.len ARR`、`map.len MAP`（纯 `${#ref[@]}` 更快时可直接用） |
+| 去空白 / 类型检查 / 转义 | `string.trim`、`string.int.check`/`natural.check`/`float.check`、`string.escape.regex`/`escape.sed` |
+| 文件/目录、写入、查找替换、解压 | `fs.file.exists`、`fs.dir.exists`、`fs.write`、`fs.find`/`replace`/`insert`、`fs.file.extract` |
+| XDG 目录、脚本名 | `path.config_dir`/`data_dir`/`state_dir`/`cache_dir` |
+| 外部命令探测、OS/架构 | `system.command.exist`/`required`、`system.os`/`arch` |
+| 终端写/宽度/对齐/重复 | `console.stdout`/`stderr`、`console.display_width`、`console.align`、`console.repeat`、`console.list` |
+| 终端 section / 缩进条目 / footer | `console.layout.*` |
+| Markdown | `markdown.*` |
+| HTTP / 下载 / SSE | `ext/requests`（`requests.download` 在同一模块；`requests.sse` 在 `ext/requests.sse`） |
+
+注意：性能优先——`${#arr[@]}`、`[[ -v map[k] ]]` 这类纯内建比调用 `array.len`/`map.contains`（走子 shell/echo）更快，允许内联。
+
 ## 项目结构
 
 ```
 bashlet/
-├── lib/core/       # 核心功能（args, log, path）
-├── lib/std/        # 标准库（array, map, console, import）
-└── test/           # Bats 测试
+├── lib/core/      # 领域装配：args log usage config config.persist report
+├── lib/std/       # 标准库：import array map string fs path system console console.layout ansi markdown
+├── lib/ext/       # 可选：requests requests.sse select llm
+├── tools/         # install / build / test
+├── test/          # Bats 测试（每个模块一个 <name>.bats）
+└── docs/adr/      # 架构决策记录
 ```
 
 ## 基本命令
 
 ```bash
-# 运行所有测试
-test/bats/bin/bats
-
-# 运行单个测试
-test/bats/bin/bats test/args.bats
+tools/test                 # 运行当前目录 test/ 下的测试（基于 CWD，不是脚本位置）
+tools/test test/args.bats  # 运行单个测试文件
+tools/test -x requests     # 排除 requests（访问网络，最慢；改非 requests 模块时用它）
+tools/test -j 4            # 并行运行
+tools/build src/x.sh -o x  # 内联依赖成单文件（shfmt 可选；默认剥离 .env，`# build:keep-env` 可保留）
+tools/install              # 在宿主仓库建立 lib/ 与 test/ 软链，生成 src/example.sh
 ```
 
 ## 编码规范
 
 ### 命名约定
 
-**函数**: `模块.函数名()`
+**函数**: `模块.函数名()`。**函数前缀必须等于文件名/模块名**（拆分模块时一并改名）。
 
 ```bash
-args.parse()    array.len()    map.get()
+args.process()    array.len()    map.get()    console.list()
 ```
 
 **变量**: `_MODULE_VAR` (全局), `local var` (局部)
@@ -53,11 +92,11 @@ echo "${#ref[@]}"  # 通过引用访问数组长度
 
 ```bash
 # 导入模块（自动去重）
-import std/array.sh
-import core/args.sh
+import std/array
+import core/args
 ```
 
-**注意**: 所有代码必须定义在函数中（除 import.sh）。
+**注意**: 除 `std/import.sh` 外，所有代码必须定义在函数中（顶层只能有 `import`、变量声明与常量赋值）。
 
 ## 极简代码风格
 
@@ -98,6 +137,8 @@ local c="${arg:1}"  # 去掉第一个字符
 for ((i=0; i<${#c}; i++)); do _ARGS_OPTS+=("-${c:i:1}"); done
 ```
 
+`basename`/`dirname` 用展开替代：`${var##*/}`、`${var%/*}`。重复字符用 `printf -v` + `${s// /x}`，不要 `printf | tr`。
+
 ### 5. 正则匹配（性能优先）
 
 使用 `[[ =~ ]]` 避免外部命令：
@@ -131,6 +172,8 @@ return 1
 return $?
 ```
 
+库函数用 `return` 传播错误，**不要调用 `exit`**（`system.command.required` 是已知例外）。
+
 ## 测试
 
 ### 测试文件模板
@@ -151,7 +194,7 @@ teardown() {
 }
 
 @test "测试描述" {
-    args.parse -f filename.txt
+    args.process -f filename.txt
     result=$(args.get "-f")
     [ "$result" = "filename.txt" ]
 }
@@ -162,7 +205,9 @@ teardown() {
 - 核心功能 100% 覆盖
 - 边界条件必须测试
 - 错误处理必须测试
-- 测试文件命名: `<库名>.bats`
+- 测试文件命名: `<库名>.bats`；拆分出的模块单独成文件（如 `console.layout.bats`）
+- 改动某模块行为时**同步更新其测试**，不要留下固化旧 bug 的断言
+- 断言不要依赖 OS 错误文案（locale 相关），断言退出码/状态
 
 ## 代码示例
 
@@ -195,8 +240,7 @@ array.get() {
 ### 参数解析
 
 ```bash
-import std/bash4.sh
-import std/array.sh
+import std/array
 
 args.parse() {
   declare -ga _ARGS_OPTS=()
@@ -219,7 +263,7 @@ args.parse() {
 
 args.has() { array.contains _ARGS_OPTS "$1"; }
 args.get() {
-  local -r i=$(args.opt_index "$1")
+  local -r i=$(args.opt.arg_index "$1")
   [[ $i ]] && args.arg "$i"
 }
 ```

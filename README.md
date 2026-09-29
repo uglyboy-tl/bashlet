@@ -1,190 +1,144 @@
 # bashlet
 
-一个轻量级 Bash 脚本开发框架，提供模块化导入、参数解析、日志输出等基础功能。
+一个轻量级 Bash 脚本开发框架：模块化 `import`、参数解析、分级日志、帮助生成、HTTP、配置与终端/标记渲染。
 
 ## 特性
 
-- **模块化导入** - 类似其他语言的 `import` 机制
-- **参数解析** - 完整的命令行参数解析，支持短选项、长选项、子命令
-- **日志输出** - 带颜色的分级日志（debug/info/warn/error/success）
-- **帮助生成** - 自动生成格式化的帮助信息
-- **代码极简** - 追求性能优先和代码极简风格
+- **模块化导入** - `import core/args` 去重加载，`tools/build` 可把依赖内联成单文件脚本
+- **参数解析** - 短/长选项、组合选项、子命令、自动帮助
+- **分级日志** - `debug/info/warn/success/error`，彩色输出到 stderr
+- **终端渲染** - 原语（宽度/对齐/重复）与组合层（section/item/footer/对齐列表）
+- **标记渲染** - Markdown 原语 + 报告装配
+- **HTTP / SSE** - 基于 curl + jq 的请求封装
+- **配置与持久化** - TOML 读取/注册，写盘逻辑独立成可选模块
+- **代码极简** - 性能优先，尽量用 Bash 内建替代外部命令
+
+## 架构分层
+
+依赖只能向下，模块即载荷（`tools/build` 会把 import 到的模块内联进产物）：
+
+```
+core/   领域装配：args · log · usage · report        （依赖 std/）
+std/    标准库：import · array · map · string · fs · path · system · console · console.layout · ansi · markdown
+ext/    可选重能力：requests · requests.sse · select · llm
+```
+
+- **终端 vs 标记两条介质分开**：`std/console`（终端）与 `std/markdown`（标记）互不依赖。
+- **原语 → 组合 → 领域**：`std/console`（原语）→ `std/console.layout`（section/item/footer）→ `core/usage`。
+- **底座必须薄**：`core/log` 依赖 `std/console`，而每个脚本都依赖 `core/log`——所以 `console` 只放原语与通用列表；组合渲染放可选的 `console.layout`。详见 `docs/adr/0001-payload-constraint-module-boundaries.md`。
 
 ## 安装
 
 ```bash
-git clone https://github.com/yourusername/bashlet.git
+git clone https://github.com/uglyboy-tl/bashlet.git
 cd bashlet
+tools/install          # 在宿主仓库建立 lib/ 与 test/bats 软链，并生成 src/example.sh
 ```
 
 ## 快速开始
 
+新脚本的官方骨架是 `examples/main.sh`——`tools/install` 会把它安装为宿主项目的 `src/example.sh`。直接读那个文件即可：
+
 ```bash
-#!/usr/bin/env bash
-
-# 导入框架
-source "path/to/bashlet/lib/std/import.sh"
-import core/args
-import core/log
-
-# 初始化参数解析
-args.init "示例脚本"
-args.add_options "file" "f" "输入文件" "FILE"
-args.add_options "verbose" "v" "详细输出"
-args.add_options "help" "h" "显示帮助"
-
-# 解析参数
-args.parse "$@"
-args.verify || { args.show_help; exit 1; }
-
-# 检查选项
-if args.has "-h" "--help"; then
-    args.show_help
-    exit 0
-fi
-
-# 获取选项值
-if file=$(args.get "-f" "--file"); then
-    log.info "输入文件: $file"
-fi
-
-args.has "-v" "--verbose" && log.info "详细模式已启用"
+tools/install          # 建立 lib/ 与 test/ 软链，并生成 src/example.sh
 ```
+
+更多可运行示例：
+
+- `examples/args.sh` - 子命令 CLI（分派、全局选项、帮助）
+- `examples/config.sh` - 配置注册 / 加载 / 读写
 
 ## 模块列表
 
-### 核心模块 (core/)
+### core/
 
 | 模块 | 功能 |
 |------|------|
-| `args` | 参数解析、选项管理、帮助生成 |
-| `log` | 分级日志输出（debug/info/warn/error/success） |
-| `usage` | 帮助信息格式化显示 |
+| `args` | 参数/子命令解析、帮助；自动加载 `usage` |
+| `log` | 分级日志（stderr，彩色） |
+| `usage` | 帮助文本渲染（`args.process --help` 调用） |
+| `config` | 配置注册、TOML 读取、内存读写 |
+| `config.persist` | 配置写盘（`config.persist.update/save`，可选，含 yq） |
+| `report` | Markdown 报告装配与导出 |
 
-### 标准库 (std/)
+### std/
 
 | 模块 | 功能 |
 |------|------|
-| `import` | 模块导入系统 |
-| `array` | 数组操作（contains/get/len 等） |
+| `import` | `import`、`source` 去重、`.env`（脚本目录优先，回退 CWD） |
+| `array` | 索引数组操作 |
 | `map` | 关联数组操作 |
-| `console` | 控制台输出工具 |
-| `ansi` | ANSI 颜色代码 |
+| `string` | 字符串/类型/转义/base64 |
+| `fs` | 文件/目录、写入、查找替换、解压 |
+| `path` | XDG 目录与脚本名 |
+| `system` | 命令探测、OS/架构 |
+| `console` | 终端原语：写、宽度、对齐、重复、对齐列表 |
+| `console.layout` | 终端组合渲染：section、缩进条目、footer |
+| `ansi` | 颜色/样式/powerline 转义码 |
+| `markdown` | Markdown 原语（标题、列表、表格、代码…） |
 
-## API 参考
+### ext/
 
-### args 模块
+| 模块 | 功能 |
+|------|------|
+| `requests` | HTTP 请求封装（get/post/…、响应解析、download） |
+| `requests.sse` | SSE 流式请求（仅少数脚本需要，独立模块） |
+| `select` | fzf / 原生单选、多选 |
+| `llm` | OpenAI 兼容 chat / 流式 chat |
 
-#### args.init [描述]
+## 函数速查
 
-初始化选项系统。可选的描述参数会设置 `_SCRIPT_DESC`。
+> 约定：一切皆 `模块.函数()`；带 `_` 前缀为内部函数。此处只列常用公开函数。
 
-```bash
-args.init "脚本描述"
-```
+**core/args**：`init` `add_options` `add_subcommand` `process` `parse` `verify` `has` `get` `args` `arg` `opt.arg_index` `show_help` `name` `description` `dispatch`
+**core/log**：`debug` `info` `success` `warn` `error` `setLevel`
+**core/usage**：`name.set` `description.set` `title` `usage` `section` `section.items` `footer` `show` `version`
+**core/config**：`path` `register` `array.register` `loose` `load` `keys` `has` `get` `set` `sections` `array.items` `array.has` `array.get` `array.add` `array.set` `type` `desc`
+**core/config.persist**：`update` `save`
+**core/report**：`dir.set` `reset` `init` `section` `subsection` `code` `table.begin` `table.add` `table.end` `export`
 
-#### args.add_options 名称 短选项 描述 [类型]
+**std/array**：`len` `contains` `append` `get` `type` `has_duplicates`
+**std/map**：`len` `contains` `get`
+**std/string**：`trim` `base64.encode` `base64.decode` `escape.regex` `escape.sed` `int.check` `natural.check` `float.check` `is_ascii` `has_ansi`
+**std/fs**：`file.exists` `dir.exists` `write` `find` `replace` `insert` `rmline` `cleanup` `mktemp` `file.extract`
+**std/path**：`script_name` `config_dir` `data_dir` `state_dir` `cache_dir` `log_dir` `local_config_dir`
+**std/system**：`command.exist` `command.required` `command.result` `os` `arch`
+**std/console**：`stdout` `stderr` `repeat` `align` `indent` `list` `ansi_width` `mixed_width` `display_width`
+**std/console.layout**：`section` `footer` `item.title` `item.item` `item.mid` `item.end`
+**std/ansi**：`enable` `disable` `enable.color` `disable.color` `enable.style` `enable.powerline` `Color.IsAvailable` `Powerline.IsAvailable`
+**std/markdown**：`escape` `header` `h1`…`h6` `list` `numbered` `todo` `table.header` `table.row` `code` `line` `link` `quote` `front_matter`
 
-添加命令行选项。
-
-```bash
-# 无参数选项
-args.add_options "verbose" "v" "详细输出"
-
-# 带参数选项
-args.add_options "file" "f" "输入文件" "FILE"
-
-# 添加 ARG 参数说明
-args.add_options "ARG" "filename" "输入文件名"
-
-# 添加示例
-args.add_options "EXAMPLE" "-f input.txt" "处理输入文件"
-
-# 添加注意事项
-args.add_options "NOTICE" "文件必须是 UTF-8 编码"
-```
-
-#### args.parse 参数...
-
-解析命令行参数。
-
-```bash
-args.parse "$@"
-```
-
-#### args.has 选项...
-
-检查选项是否存在（支持多个别名）。
-
-```bash
-args.has "-v" "--verbose" && echo "详细模式"
-```
-
-#### args.get 选项...
-
-获取选项的参数值。
-
-```bash
-if value=$(args.get "-f" "--file"); then
-    echo "文件: $value"
-fi
-```
-
-#### args.verify
-
-验证所有选项是否合法。
-
-```bash
-args.verify || { args.show_help; exit 1; }
-```
-
-#### args.dispatch 子命令
-
-分派到已注册的子命令。
-
-```bash
-args.add_subcommand "build" "构建项目" "cmd_build"
-args.dispatch "$@" || echo "未知子命令"
-```
-
-### log 模块
-
-```bash
-log.debug "调试信息"
-log.info "普通信息"
-log.warn "警告信息"
-log.error "错误信息"
-log.success "成功信息"
-```
+**ext/requests**：`init` `timeout` `base_url` `auth` `auth_bearer` `headers.append` `headers.clear` `get` `post` `put` `delete` `patch` `head` `options` `download` `json` `status_code` `headers` `text` `success` `raise_for_status`
+> `ext/requests` 必须先调 `requests.init`（定位 curl/jq、设默认头）；不再有懒初始化。
+**ext/requests.sse**：`sse`
+**ext/select**：`single` `multi`
+**ext/llm**：`init` `api_key` `base_url` `model` `chat` `chat.stream`
 
 ## 开发规范
 
-- 函数命名：`模块.函数名()`
-- 全局变量：`$_MODULE_VAR`
-- 局部变量：`local var`
-- 性能优先：使用 Bash 内置特性，避免外部命令
-- 代码极简：单行函数、紧凑逻辑
+- 函数命名 `模块.函数名()`；全局 `_MODULE_VAR`，局部 `local`。
+- 性能优先：优先 Bash 内建/参数展开，避免外部命令与子 shell。
+- **不重造轮子**：动手前先查上面的函数速查（如数组用 `array.contains/get`、对齐输出用 `console.align/list`）。详见 `AGENTS.md`。
+- 代码极简：单行函数、紧凑逻辑、尽早返回。
 
-## 运行测试
+## 构建与测试
 
 ```bash
-# 运行所有测试
-./test/bats/bin/bats test/
+tools/test                 # 运行「当前目录」test/ 下的用例（宿主项目）
+tools/test test/args.bats  # 运行单个文件
+tools/test -x requests     # 排除 requests（其用例访问网络，最慢）
+tools/test -j 4            # 并行
+# 注：test 基于当前工作目录，不是脚本所在目录——在哪个项目根跑，就测哪个项目的 test/
 
-# 运行单个测试文件
-./test/bats/bin/bats test/args.bats
+tools/build src/my-script.sh -o my-tool   # 内联依赖成单文件（需 shfmt 才压缩，缺失则跳过）
+# 注：默认剥离 .env（产物不读本地 .env，环境变量由真实环境提供）；
+#     入口脚本写 `# build:keep-env` 可让该产物保留 .env。
 
-# 使用测试工具
-./tools/test.sh
+tools/test test/payload.bats              # 载荷棘轮：各模块字节基线（只允许下降/持平）
+PAYLOAD_UPDATE=1 tools/test test/payload.bats   # 增长后刷新基线
 ```
 
-## 示例
-
-查看 `examples/` 目录获取更多示例：
-
-- `args.sh` - 完整的子命令 CLI 工具示例
-- `config.sh` - 完整的配置文件使用示例
-- `main.sh` - 一般脚本示例
+> `test/payload.bats` 的数值依赖 shfmt 版本；无 shfmt 时不压缩，数值会更大。
 
 ## License
 
