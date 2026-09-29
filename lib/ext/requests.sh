@@ -15,6 +15,7 @@ declare -gA _REQUESTS_AUTH=()
 declare -g _REQUESTS_CURL=""
 declare -g _REQUESTS_JQ=""
 
+# 用法约束：所有请求函数前必须先调 requests.init（它负责定位 curl/jq 并设置默认头）。
 requests.init() {
 	declare -ga _REQUESTS_CURL_EXTRA=("$@")
 
@@ -29,14 +30,6 @@ requests.init() {
 
 	log.debug "requests module initialized: curl=$_REQUESTS_CURL, jq=$_REQUESTS_JQ"
 	return 0
-}
-
-requests.curl.check() {
-	[[ -n $_REQUESTS_CURL ]] || _REQUESTS_CURL="$(command -v curl)"
-}
-
-requests.jq.check() {
-	[[ -n $_REQUESTS_JQ ]] || _REQUESTS_JQ="$(command -v jq)"
 }
 
 requests.curl.configure() {
@@ -88,9 +81,6 @@ requests.request() {
 	local -r body="$3"
 	local -r content_type="$4"
 
-	requests.curl.check
-	requests.jq.check
-
 	local curl_cmd
 	requests.request.build curl_cmd "$method" "$url" "$body" "$content_type" || return 1
 
@@ -117,7 +107,6 @@ requests.request() {
 }
 
 requests.download() {
-	requests.curl.check
 	local curl_cmd=("$_REQUESTS_CURL" "-L" "--globoff")
 	# 默认不附加认证头，与 requests.get()/post() 行为不同，
 	# 如需认证请使用 URL 参数或直接调用 requests.request()
@@ -132,24 +121,6 @@ requests.download() {
 
 	# 执行下载
 	"${curl_cmd[@]}" "$1"
-}
-
-requests.sse() {
-	local -r callback="$1"
-	local -r method="$2"
-	local -r url="$3"
-	local -r body="$4"
-	local -r content_type="${5:-$(requests.content_type.detect "$4")}"
-
-	requests.curl.check
-
-	local curl_cmd
-	requests.request.build curl_cmd "$method" "$url" "$body" "$content_type" || return 1
-	curl_cmd+=("-N")
-
-	"${curl_cmd[@]}" | while IFS= read -r line; do
-		[[ $line =~ ^data:\ (.+) ]] && "$callback" "${BASH_REMATCH[1]}"
-	done
 }
 
 # URL 编码辅助函数
@@ -169,7 +140,6 @@ requests.content_type.detect() {
 requests.body.build() {
 	local -n ref="$1"
 	local first=true
-	requests.jq.check
 	if [[ ${2:-form} == "json" ]]; then
 		printf "{"
 		for key in "${!ref[@]}"; do
@@ -274,7 +244,7 @@ requests.base_url() { _REQUESTS_BASE_URL="$1"; }
 requests.headers.clear() { _REQUESTS_HEADERS=(); }
 
 # 设置 Basic Auth (用户名 密码)
-requests.auth() { _REQUESTS_AUTH["Authorization"]="Basic $(jq -nr --arg c "$1:$2" '$c | @base64')"; }
+requests.auth() { _REQUESTS_AUTH["Authorization"]="Basic $("$_REQUESTS_JQ" -nr --arg c "$1:$2" '$c | @base64')"; }
 
 # 设置 Bearer Token
 requests.auth_bearer() { _REQUESTS_AUTH["Authorization"]="Bearer $1"; }

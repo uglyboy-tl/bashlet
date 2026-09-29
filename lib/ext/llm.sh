@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 import ext/requests
+import ext/requests.sse
 import core/log
 
 : "${OPENAI_API_KEY:=""}"
@@ -22,11 +23,10 @@ llm.chat.stream() {
 	local messages="$2"
 	local callback="${3:-llm._sse_callback}"
 
-	requests.jq.check
 	[[ -n $OPENAI_API_KEY ]] || { log.error "API key not set. Call llm.api_key first." && return 1; }
 
 	local body
-	body=$(jq -n \
+	body=$("$_REQUESTS_JQ" -n \
 		--arg model "$model" \
 		--argjson messages "$messages" \
 		'{
@@ -44,7 +44,7 @@ llm._sse_callback() {
 	[[ $1 == "[DONE]" ]] && return 0
 
 	local content
-	content=$(jq -r '.choices[0].delta.content // empty' <<< "$1")
+	content=$("$_REQUESTS_JQ" -r '.choices[0].delta.content // empty' <<< "$1")
 	[[ -n $content ]] && printf "%s" "$content" || true
 }
 
@@ -53,7 +53,7 @@ llm.chat() {
 	[[ -n $text ]] || { log.error "Missing prompt text" && return 1; }
 
 	local messages
-	messages=$(jq -n --arg text "$text" '[{"role": "user", "content": $text}]')
+	messages=$("$_REQUESTS_JQ" -n --arg text "$text" '[{"role": "user", "content": $text}]')
 
 	llm.chat.stream "" "$messages" "llm._sse_callback"
 	echo
