@@ -7,8 +7,10 @@ import std/console
 : "${_LOG_LEVEL:=INFO}"
 
 declare -gA _LOG_LEVEL_MAP=(
-	[DEBUG]=0 [INFO]=1 [WARN]=2 [ERROR]=3
+	[DEBUG]=0 [INFO]=1 [WARN]=2 [SUCCESS]=2 [ERROR]=3
 )
+# 非法的 _LOG_LEVEL 回退 INFO，避免 set -u 下未绑定崩溃
+[[ -v "_LOG_LEVEL_MAP[$_LOG_LEVEL]" ]] || _LOG_LEVEL=INFO
 declare -gi _LOG_MIN_LEVEL=${_LOG_LEVEL_MAP[$_LOG_LEVEL]}
 
 log.setLevel() {
@@ -36,7 +38,7 @@ log() {
 	[[ -z $flag ]] || shift
 
 	local prefix extra=""
-	[[ $_LOG_USE_EXTRA == true ]] && extra="${BASH_SOURCE[2]##*/}:${BASH_LINENO[0]}"
+	[[ $_LOG_USE_EXTRA == true ]] && [[ -v BASH_SOURCE[2] ]] && extra="${BASH_SOURCE[2]##*/}:${BASH_LINENO[0]}"
 	[[ -z $extra ]] || extra="$WHITE(${extra})$NC"
 	prefix="$WHITE$timestamp$NC$flag$extra"
 	console.stderr "$prefix" "$@"
@@ -44,6 +46,6 @@ log() {
 
 log.debug() { ((0 >= _LOG_MIN_LEVEL)) && log debug "$@" || true; }
 log.info() { ((1 >= _LOG_MIN_LEVEL)) && log info "$@" || true; }
-log.success() { ((1 >= _LOG_MIN_LEVEL)) && log success "$@" || true; }
+log.success() { ((2 >= _LOG_MIN_LEVEL)) && log success "$@" || true; }
 log.warn() { ((2 >= _LOG_MIN_LEVEL)) && log warn "$@" || true; }
 log.error() { ((3 >= _LOG_MIN_LEVEL)) && log error "$@" || true; }

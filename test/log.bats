@@ -84,8 +84,14 @@ teardown() {
 	[[ $output == *"[SUCCESS]"* ]]
 }
 
-@test "log.success - SUCCESS 等级按 INFO（INFO 级关闭）" {
+@test "log.success - SUCCESS 等级按 WARN 级输出（WARN 级开启）" {
 	log.setLevel WARN
+	run log.success "success message"
+	[[ $output == *"[SUCCESS]"* ]]
+}
+
+@test "log.success - ERROR 级时静默" {
+	log.setLevel ERROR
 	run log.success "success message"
 	[ "$output" = "" ]
 }
@@ -451,8 +457,8 @@ teardown() {
 	[ "$status" -eq 0 ]
 }
 
-@test "log.success - 等级过滤时也返回状态码 0" {
-	log.setLevel WARN
+@test "log.success - ERROR 级过滤时静默且返回状态码 0" {
+	log.setLevel ERROR
 	run log.success "should not appear"
 	[ "$status" -eq 0 ]
 	[ "$output" = "" ]
@@ -490,4 +496,11 @@ teardown() {
 @test "log.setLevel - 设置无效等级返回非零状态码" {
 	run log.setLevel INVALID
 	[ "$status" -ne 0 ]
+}
+
+@test "log - 非法 _LOG_LEVEL 环境值不崩溃（回退 INFO）" {
+	run env PROJECT_ROOT="$PROJECT_ROOT" _LOG_LEVEL=TRACE bash -c \
+		'set -u; source "$PROJECT_ROOT/lib/std/import.sh"; import core/log; log.info "hi"'
+	[ "$status" -eq 0 ]
+	[[ $output == *"[INFO]"* ]]
 }
