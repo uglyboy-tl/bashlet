@@ -29,7 +29,7 @@ system.os() {
 		msys* | cygwin*) echo "windows" ;;
 		bsd*) echo "bsd" ;;
 		solaris*) echo "solaris" ;;
-		*) echo"unknown" ;;
+		*) echo "unknown" ;;
 	esac
 }
 _SYSTEM_OS="$(system.os)"
@@ -42,6 +42,7 @@ system.arch() {
 		aarch64 | arm64) echo "arm64" ;;
 		armv7l | armhf) echo "armhf" ;;
 		i686 | i386 | i586) echo "i386" ;;
+		*) echo "$arch" ;;
 	esac
 }
 _SYSTEM_ARCH="$(system.arch)"

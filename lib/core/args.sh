@@ -38,7 +38,7 @@ args.add_options() {
 	[[ -n $_ARGS_CURRENT_SUBCOMMAND ]] && subcommand=" $_ARGS_CURRENT_SUBCOMMAND" || subcommand=""
 	case ${1^^} in
 		"ARG") [[ -n $2 ]] && _ARGS_HELP_ARGS["$2"]="${3}" && _ARGS_OPTIONS_TYPE["$2"]="${type}" ;;
-		"EXAMPLE") _ARGS_HELP_EXAMPLES["$(basename "$0")$subcommand $2"]="${3}" ;;
+		"EXAMPLE") _ARGS_HELP_EXAMPLES["${0##*/}$subcommand $2"]="${3}" ;;
 		"NOTICE") _ARGS_HELP_NOTICES+=(["${2}"]="") ;;
 		*)
 			_ARGS_OPTIONS_TYPE["$1"]="${type}"
