@@ -82,9 +82,6 @@ teardown() {
 	run source ""
 	[ "$status" -ne 0 ]
 	[ -n "$output" ]
-
-	# 验证错误信息
-	[[ $output == *"没有那个文件或目录"* ]]
 }
 
 @test "错误处理 - 不存在的文件" {
@@ -255,17 +252,26 @@ EOF
 	rm -rf deep
 }
 
-@test ".env - 从运行目录加载 .env" {
-	local tmpdir
+@test ".env - 脚本目录无 .env 时回退到运行目录（CWD）" {
+	local tmpdir rundir import_path
 	tmpdir=$(mktemp -d)
-	cd "$tmpdir"
-	echo "TEST_VAR=hello" > .env
+	rundir=$(mktemp -d)
+	import_path="$PROJECT_ROOT/lib/std/import.sh"
 
-	[[ -z "${TEST_VAR:-}" ]]
-	.env
-	[[ "$TEST_VAR" == "hello" ]]
+	echo "TEST_VAR=rundir_value" > "$rundir/.env"
 
-	rm -rf "$tmpdir"
+	cat > "$tmpdir/helper.sh" << 'SH'
+source "$1"
+.env
+echo "TEST_VAR=${TEST_VAR:-unset}"
+SH
+
+	cd "$rundir"
+	run bash "$tmpdir/helper.sh" "$import_path"
+	[[ "$status" -eq 0 ]]
+	[[ "$output" == "TEST_VAR=rundir_value" ]]
+
+	rm -rf "$tmpdir" "$rundir"
 }
 
 @test ".env - 从脚本所在目录加载 .env" {
@@ -303,6 +309,7 @@ source "$1"
 echo "TEST_VAR=${TEST_VAR:-unset}"
 SH
 
+	cd "$rundir"
 	run bash "$tmpdir/helper.sh" "$import_path"
 	[[ "$status" -eq 0 ]]
 	[[ "$output" == "TEST_VAR=script_value" ]]

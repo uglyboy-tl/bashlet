@@ -16,7 +16,7 @@ source() {
 	[[ $mod == /* ]] || mod="$(cd "${mod%/*}" && pwd)/${mod##*/}"
 
 	[[ " ${__loaded_modules[*]} " == *" $mod "* ]] && return 0
-	. "$1" || return $?
+	. "$mod" || return $?
 	__loaded_modules+=("$mod")
 }
 
@@ -28,4 +28,4 @@ import() {
 	done
 }
 
-.env() { [[ -f .env ]] && source .env || true; [[ -v BASH_SOURCE[1] ]] && [[ -f "${BASH_SOURCE[1]%/*}/.env" ]] && source "${BASH_SOURCE[1]%/*}/.env" || true; }
+.env() { local _d="${BASH_SOURCE[1]:-}"; _d="${_d%/*}"; [[ $_d != "${BASH_SOURCE[1]:-}" ]] || _d="."; [[ -f "$_d/.env" ]] || _d="."; [[ -f "$_d/.env" ]] && source "$_d/.env" || true; }

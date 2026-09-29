@@ -27,24 +27,28 @@ fs.rmline() { [[ -n $4 ]] && sed -i "${4},/$2/{/$2/d}" "$1" 2> /dev/null || sed 
 # shellcheck disable=SC2012
 fs.cleanup() { ls -t "${1}"* 2> /dev/null | tail -n +$((${2:-3} + 1)) | xargs -r rm -f; } # 保留最新的 n 个文件 (默认 3 个)
 
-fs.mktemp() { mktemp "$@" 2> /dev/null || { log.error "Failed to create temporary file" && return 1; }; }
+fs.mktemp() { mktemp "$@" 2> /dev/null || { echo "fs.mktemp: 创建临时文件失败" >&2; return 1; }; }
 
 fs.file.extract() {
 	local path=$(realpath "$1") base=$(basename "$1")
-	builtin cd "$2" > /dev/null || return 1
 
-	case "${base,,}" in
-		*.zip | *.war | *.jar | *.ear | *.sublime-package | *.ipa | *.ipsw | *.xpi | *.apk | *.aar | *.whl | *.vsix | *.crx | *.pk3 | *.pk4) unzip -q "$path" ;;
-		*.tar.gz | *.tgz) tar -zxf "$path" ;;
-		*.tar.bz2 | *.tbz | *.tbz2 | *.tar.bz) tar -jxf "$path" ;;
-		*.tar.xz | *.txz) tar -xJf "$path" ;;
-		*.tar) tar -xf "$path" ;;
-		*.gz) gzip -dc "$path" > "${base%.gz}" ;;
-		*.bz2) bzip2 -dc "$path" > "${base%.bz2}" ;;
-		*.xz) xz -dc "$path" > "${base%.xz}" ;;
-		*)
-			chmod +x "$path"
-			cp "$path" "${base%%.*}"
-			;;
-	esac
+	# 在子 shell 内切换目录，避免改变调用方的 cwd
+	(
+		builtin cd "$2" > /dev/null || return 1
+
+		case "${base,,}" in
+			*.zip | *.war | *.jar | *.ear | *.sublime-package | *.ipa | *.ipsw | *.xpi | *.apk | *.aar | *.whl | *.vsix | *.crx | *.pk3 | *.pk4) unzip -q "$path" ;;
+			*.tar.gz | *.tgz) tar -zxf "$path" ;;
+			*.tar.bz2 | *.tbz | *.tbz2 | *.tar.bz) tar -jxf "$path" ;;
+			*.tar.xz | *.txz) tar -xJf "$path" ;;
+			*.tar) tar -xf "$path" ;;
+			*.gz) gzip -dc "$path" > "${base%.gz}" ;;
+			*.bz2) bzip2 -dc "$path" > "${base%.bz2}" ;;
+			*.xz) xz -dc "$path" > "${base%.xz}" ;;
+			*)
+				chmod +x "$path"
+				cp "$path" "${base%%.*}"
+				;;
+		esac
+	)
 }

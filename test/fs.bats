@@ -1032,6 +1032,16 @@ echo "hello"' > "$test_file"
 	rm -rf "$temp_dir"
 }
 
+@test "fs.file.extract - 不改变调用方 cwd" {
+	local src_dir=$(mktemp -d)
+	local dst_dir=$(mktemp -d)
+	echo "hello" > "$src_dir/plain"
+	local before="$PWD"
+	fs.file.extract "$src_dir/plain" "$dst_dir"
+	[ "$PWD" = "$before" ]
+	rm -rf "$src_dir" "$dst_dir"
+}
+
 # ============ fs.mktemp 测试 ============
 
 @test "fs.mktemp - 创建临时文件（无参数）" {
