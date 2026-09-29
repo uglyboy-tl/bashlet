@@ -20,6 +20,7 @@ PROJECT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 source "$PROJECT_ROOT/lib/std/import.sh"
 
 import core/args
+import core/log
 
 VERSION="1.0.0"
 
