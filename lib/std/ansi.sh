@@ -4,13 +4,19 @@ ANSI_ESC=$'\033'
 ANSI_CSI="${ANSI_ESC}["
 
 ansi.Color.IsAvailable() {
+	# 非 tty 直接否定，避免无谓的 tput 子进程
+	[[ -t 1 ]] || return 1
 	local colors
 	colors=$(tput colors 2> /dev/null || echo 0)
-	[[ $colors -ge 16 ]] && [[ -t 1 ]]
+	[[ $colors -ge 16 ]]
 }
 
 ansi.Powerline.IsAvailable() {
-	[[ -z ${NO_UNICODE-} ]] && locale -k LC_CTYPE 2> /dev/null | grep -q 'UTF-8'
+	[[ -n ${NO_UNICODE-} ]] && return 1
+	# locale 环境已表明 UTF-8 时免去 locale|grep 两个子进程
+	local lc="${LC_ALL:-${LC_CTYPE:-${LANG:-}}}"
+	[[ $lc == *UTF-8* || $lc == *utf8* ]] && return 0
+	locale -k LC_CTYPE 2> /dev/null | grep -q 'UTF-8'
 }
 
 ansi.enable.color() {

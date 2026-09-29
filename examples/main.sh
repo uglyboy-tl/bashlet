@@ -3,7 +3,7 @@
 set -euo pipefail
 SCRIPT_NAME="Demo"
 VERSION="1.0.0"
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROJECT_ROOT="$(cd "${BASH_SOURCE[0]%/*}/.." && pwd)"
 source "$PROJECT_ROOT/lib/std/import.sh"
 
 .env # 可选：加载 .env（脚本目录优先，回退当前工作目录）
