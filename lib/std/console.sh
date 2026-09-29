@@ -7,23 +7,21 @@ console.stdout() { printf "%s\n" "$*"; }
 console.stderr() { printf "%s\n" "$*" >&2; }
 
 console.repeat() {
-	local repeat=${2:-0}
+	local char="$1" repeat=${2:-0}
 	((repeat <= 0)) && return
-	local char="$1"
 	if [[ ${#char} -eq 1 ]]; then
-		# 单字符优化：使用 printf + tr
-		printf "%*s" "$repeat" "" | tr ' ' "$char"
+		# 纯内置：printf -v 填充 + 参数展开替换，零外部进程
+		local _pad
+		printf -v _pad '%*s' "$repeat" ''
+		printf '%s' "${_pad// /$char}"
 	else
-		# 多字符：使用原始方法但优化循环
-		local result=""
+		local result="" i
 		for ((i = 0; i < repeat; i++)); do
 			result+="$char"
 		done
 		printf "%s" "$result"
 	fi
 }
-
-UNDERLINE_CACHE=$(console.repeat "=" 20)
 
 console.align() {
 	local padding=$(($1 - $(console.display_width "$2")))
@@ -90,32 +88,4 @@ console.display_width() {
 	}
 	! string.is_ascii "$1" && console.mixed_width "$1" && return
 	string.has_ansi "$1" && console.ansi_width "$1" || echo "${#1}"
-}
-
-console.section() {
-	console.stdout "$1:"
-	console.stdout "=${UNDERLINE_CACHE:0:$(console.mixed_width "$1")}"
-}
-
-console.item.title() {
-	console.indent "$1" "${*:2}"
-	_CONSOLE_INDENT_DEPTH=$(($1 + 1))
-}
-
-console.item.item() {
-	console.indent "${_CONSOLE_INDENT_DEPTH}" "${*}"
-}
-
-console.item.mid() {
-	console.item.item "├─" "${*}"
-}
-
-console.item.end() {
-	console.item.item "└─" "${*}"
-	echo ""
-}
-
-console.footer() {
-	console.stdout "========="
-	console.stdout "${*}"
 }

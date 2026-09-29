@@ -180,8 +180,8 @@ teardown() {
 	declare -A notices=()
 
 	output=$(usage.show opts args examples notices 2>&1)
-	# 在子命令模式下不显示 Commands 部分
-	[[ $output != *"Commands"* ]] || [[ $output != *"commands"* ]]
+	# 子命令模式下不显示 Commands 段
+	[[ $output != *"Commands"* ]]
 	[[ $output != *"for subcommand help"* ]]
 }
 
