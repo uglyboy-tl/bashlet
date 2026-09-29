@@ -86,3 +86,18 @@ teardown() {
 	[ "$(cat "$file")" = "### Test content" ]
 	rm -f "$file"
 }
+
+@test "report.export - _REPORT_DIR 为空时回退当前目录" {
+	_REPORT_DIR=""
+	report.subsection "probe"
+	local file
+	file=$(report.export)
+	[[ $file == ./* ]]
+	[ -f "$file" ]
+	rm -f "$file"
+}
+
+@test "report.code - 命令失败时记录错误结果" {
+	report.code "false"
+	[[ ${_REPORT_CONTENT[1]} == *"命令执行失败"* ]]
+}

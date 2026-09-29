@@ -245,3 +245,56 @@ teardown() {
 	[[ $output == *"app"* ]]
 	[[ $output == *"version"* ]]
 }
+
+# ========== usage.name.set / description.set ==========
+
+@test "usage.name.set - 设置脚本名" {
+	usage.name.set "mytool"
+	[ "$_USAGE_SCRIPT_NAME" = "mytool" ]
+}
+
+@test "usage.description.set - 设置描述" {
+	usage.description.set "我的工具"
+	[ "$_USAGE_SCRIPT_DESC" = "我的工具" ]
+}
+
+@test "usage.description.set - 空描述被忽略" {
+	_USAGE_SCRIPT_DESC="keep"
+	usage.description.set "" || true
+	[ "$_USAGE_SCRIPT_DESC" = "keep" ]
+}
+
+# ========== usage.title ==========
+
+@test "usage.title - 含脚本名与描述" {
+	_USAGE_SCRIPT_NAME="mytool"
+	_USAGE_SCRIPT_DESC="我的工具"
+	run usage.title
+	[ "$status" -eq 0 ]
+	[[ $output == *"mytool"* ]]
+	[[ $output == *"我的工具"* ]]
+}
+
+# ========== usage.section ==========
+
+@test "usage.section - 输出标题加冒号" {
+	run usage.section "Options"
+	[ "$status" -eq 0 ]
+	[[ $output == *"Options:"* ]]
+}
+
+# ========== usage.footer ==========
+
+@test "usage.footer - 无子命令时不输出" {
+	declare -gA _ARGS_SUBCOMMANDS=()
+	run usage.footer
+	[ "$status" -eq 0 ]
+	[ -z "$output" ]
+}
+
+@test "usage.footer - 有子命令时给提示" {
+	declare -gA _ARGS_SUBCOMMANDS=(["build"]="cmd_build")
+	run usage.footer
+	[ "$status" -eq 0 ]
+	[[ $output == *"subcommand"* ]]
+}
