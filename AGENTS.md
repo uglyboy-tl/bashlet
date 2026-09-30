@@ -2,7 +2,7 @@
 
 bashlet 是一个 Bash 脚本开发框架，提供基础功能库。
 
-## 架构与载荷约束（最重要的约束）
+## 架构与载荷约束
 
 依赖只能向下：`core/ → std/`；`ext/` 为可选重能力。`tools/build` 会把 import 到的模块**内联进产物**，所以**模块即载荷**——加进某个模块的代码，所有 import 它的脚本都要背。
 
@@ -14,8 +14,8 @@ bashlet 是一个 Bash 脚本开发框架，提供基础功能库。
 加新模块后，用 `tools/build` 构建下游脚本，确认**不相关的脚本体积没有变大**。`test/payload.bats` 用「只 import 该模块」的最小消费者记录各模块字节基线（棘轮：只允许下降/持平）：
 
 ```bash
-tools/test test/payload.bats                   # 校验
-PAYLOAD_UPDATE=1 tools/test test/payload.bats  # 增长后刷新基线
+tools/test payload.bats                   # 校验
+PAYLOAD_UPDATE=1 tools/test payload.bats  # 增长后刷新基线
 ```
 
 ## 复用优先（不要重造轮子）
@@ -30,6 +30,7 @@ PAYLOAD_UPDATE=1 tools/test test/payload.bats  # 增长后刷新基线
 | 文件/目录、写入、查找替换、解压 | `fs.file.exists`、`fs.dir.exists`、`fs.write`、`fs.find`/`replace`/`insert`、`fs.file.extract` |
 | XDG 目录、脚本名 | `path.config_dir`/`data_dir`/`state_dir`/`cache_dir` |
 | 外部命令探测、OS/架构 | `system.command.exist`/`required`、`system.os`/`arch` |
+| 图形会话探测 | `system.gui_supported` |
 | 终端写/宽度/对齐/重复 | `console.stdout`/`stderr`、`console.display_width`、`console.align`、`console.repeat`、`console.list` |
 | 终端 section / 缩进条目 / footer | `console.layout.*` |
 | Markdown | `markdown.*` |
@@ -42,7 +43,7 @@ PAYLOAD_UPDATE=1 tools/test test/payload.bats  # 增长后刷新基线
 ```
 bashlet/
 ├── lib/core/      # 领域装配：args log usage config config.persist report
-├── lib/std/       # 标准库：import array map string fs path system console console.layout ansi markdown
+├── lib/std/       # 标准库：import array map string fs path system console console.layout console.epipe ansi markdown
 ├── lib/ext/       # 可选：requests requests.sse select llm
 ├── tools/         # install / build / test
 ├── test/          # Bats 测试（每个模块一个 <name>.bats）
@@ -53,7 +54,7 @@ bashlet/
 
 ```bash
 tools/test                 # 运行当前目录 test/ 下的测试（基于 CWD，不是脚本位置）
-tools/test test/args.bats  # 运行单个测试文件
+tools/test args.bats       # 运行单个测试文件（相对 test/，不要带 test/ 前缀）
 tools/test -x requests     # 排除 requests（访问网络，最慢；改非 requests 模块时用它）
 tools/test -j 4            # 并行运行
 tools/build src/x.sh -o x  # 内联依赖成单文件（shfmt 可选；默认剥离 .env，`# build:keep-env` 可保留）
@@ -208,70 +209,3 @@ teardown() {
 - 测试文件命名: `<库名>.bats`；拆分出的模块单独成文件（如 `console.layout.bats`）
 - 改动某模块行为时**同步更新其测试**，不要留下固化旧 bug 的断言
 - 断言不要依赖 OS 错误文案（locale 相关），断言退出码/状态
-
-## 代码示例
-
-### 简单函数
-
-```bash
-console.stderr() { printf "%s\n" "$*" >&2; }
-```
-
-### 数组操作
-
-```bash
-array.len() {
-  local -n ref="$1"
-  echo "${#ref[@]}"
-}
-
-array.contains() {
-  local -n ref="$1"
-  [[ " ${ref[*]} " == *" $2 "* ]]
-}
-
-array.get() {
-  local -n ref="$1"
-  local len=${#ref[@]}
-  (( $2 >= 0 && $2 < len )) && echo "${ref[$2]}" || return 1
-}
-```
-
-### 参数解析
-
-```bash
-import std/array
-
-args.parse() {
-  declare -ga _ARGS_OPTS=()
-  declare -ga _ARGS_ARGS=()
-  declare -gA _ARGS_OPT_ARGS=()
-
-  local end=0 last=""
-  for arg in "$@"; do
-    if [[ $arg == '--' ]]; then
-      end=1
-    elif (( !end )) && [[ $arg =~ ^- ]]; then
-      _ARGS_OPTS+=("$arg")
-      last="$arg"
-    else
-      _ARGS_ARGS+=("$arg")
-      [[ $last ]] && _ARGS_OPT_ARGS["$last"]=$(( ${#_ARGS_ARGS[@]} - 1 )) && last=""
-    fi
-  done
-}
-
-args.has() { array.contains _ARGS_OPTS "$1"; }
-args.get() {
-  local -r i=$(args.opt.arg_index "$1")
-  [[ $i ]] && args.arg "$i"
-}
-```
-
-## 最佳实践
-
-**核心理念**: 性能优先 + 代码极简（两者兼顾）
-
-1. 一切皆函数，使用 `import` 导入模块
-2. 测试驱动：每个函数都有测试，覆盖边界条件
-3. 遵循命名规范和代码风格

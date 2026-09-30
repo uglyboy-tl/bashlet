@@ -19,7 +19,7 @@
 
 ```
 core/   领域装配：args · log · usage · report        （依赖 std/）
-std/    标准库：import · array · map · string · fs · path · system · console · console.layout · ansi · markdown
+std/    标准库：import · array · map · string · fs · path · system · console · console.layout · console.epipe · ansi · markdown
 ext/    可选重能力：requests · requests.sse · select · llm
 ```
 
@@ -32,15 +32,16 @@ ext/    可选重能力：requests · requests.sse · select · llm
 ```bash
 git clone https://github.com/uglyboy-tl/bashlet.git
 cd bashlet
-tools/install          # 在宿主仓库建立 lib/ 与 test/bats 软链，并生成 src/example.sh
+tools/install          # 建立 lib/ 与 test/ 软链，并生成 src/example.sh
 ```
 
 ## 快速开始
 
-新脚本的官方骨架是 `examples/main.sh`——`tools/install` 会把它安装为宿主项目的 `src/example.sh`。直接读那个文件即可：
+新脚本以 `examples/main.sh` 为骨架（`tools/install` 已把它安装为宿主项目的 `src/example.sh`）。构建成单文件后即可运行：
 
 ```bash
-tools/install          # 建立 lib/ 与 test/ 软链，并生成 src/example.sh
+tools/build src/example.sh -o example
+./example --help
 ```
 
 更多可运行示例：
@@ -74,6 +75,7 @@ tools/install          # 建立 lib/ 与 test/ 软链，并生成 src/example.sh
 | `system` | 命令探测、OS/架构 |
 | `console` | 终端原语：写、宽度、对齐、重复、对齐列表 |
 | `console.layout` | 终端组合渲染：section、缩进条目、footer |
+| `console.epipe` | 非交互输出安全：忽略 SIGPIPE、非 tty 时重定向到日志 |
 | `ansi` | 颜色/样式/powerline 转义码 |
 | `markdown` | Markdown 原语（标题、列表、表格、代码…） |
 
@@ -83,7 +85,7 @@ tools/install          # 建立 lib/ 与 test/ 软链，并生成 src/example.sh
 |------|------|
 | `requests` | HTTP 请求封装（get/post/…、响应解析、download） |
 | `requests.sse` | SSE 流式请求（仅少数脚本需要，独立模块） |
-| `select` | fzf / 原生单选、多选 |
+| `select` | 选择器：fzf / rofi / 原生，按 `SELECT_UI` 分派 |
 | `llm` | OpenAI 兼容 chat / 流式 chat |
 
 ## 函数速查
@@ -102,16 +104,17 @@ tools/install          # 建立 lib/ 与 test/ 软链，并生成 src/example.sh
 **std/string**：`trim` `base64.encode` `base64.decode` `escape.regex` `escape.sed` `int.check` `natural.check` `float.check` `is_ascii` `has_ansi`
 **std/fs**：`file.exists` `dir.exists` `write` `find` `replace` `insert` `rmline` `cleanup` `mktemp` `file.extract`
 **std/path**：`script_name` `config_dir` `data_dir` `state_dir` `cache_dir` `log_dir` `local_config_dir`
-**std/system**：`command.exist` `command.required` `command.result` `os` `arch`
+**std/system**：`command.exist` `command.required` `command.result` `gui_supported` `os` `arch`
 **std/console**：`stdout` `stderr` `repeat` `align` `indent` `list` `ansi_width` `mixed_width` `display_width`
 **std/console.layout**：`section` `footer` `item.title` `item.item` `item.mid` `item.end`
+**std/console.epipe**：`init`
 **std/ansi**：`enable` `disable` `enable.color` `disable.color` `enable.style` `enable.powerline` `Color.IsAvailable` `Powerline.IsAvailable`
 **std/markdown**：`escape` `header` `h1`…`h6` `list` `numbered` `todo` `table.header` `table.row` `code` `line` `link` `quote` `front_matter`
 
 **ext/requests**：`init` `timeout` `base_url` `auth` `auth_bearer` `headers.append` `headers.clear` `get` `post` `put` `delete` `patch` `head` `options` `download` `json` `status_code` `headers` `text` `success` `raise_for_status`
 > `ext/requests` 必须先调 `requests.init`（定位 curl/jq、设默认头）；不再有懒初始化。
 **ext/requests.sse**：`sse`
-**ext/select**：`single` `multi`
+**ext/select**：`one` `many` `ui` `gui.supported`
 **ext/llm**：`init` `api_key` `base_url` `model` `chat` `chat.stream`
 
 ## 开发规范
@@ -125,7 +128,7 @@ tools/install          # 建立 lib/ 与 test/ 软链，并生成 src/example.sh
 
 ```bash
 tools/test                 # 运行「当前目录」test/ 下的用例（宿主项目）
-tools/test test/args.bats  # 运行单个文件
+tools/test args.bats       # 运行单个文件（相对 test/，不带 test/ 前缀）
 tools/test -x requests     # 排除 requests（其用例访问网络，最慢）
 tools/test -j 4            # 并行
 # 注：test 基于当前工作目录，不是脚本所在目录——在哪个项目根跑，就测哪个项目的 test/
@@ -134,8 +137,8 @@ tools/build src/my-script.sh -o my-tool   # 内联依赖成单文件（需 shfmt
 # 注：默认剥离 .env（产物不读本地 .env，环境变量由真实环境提供）；
 #     入口脚本写 `# build:keep-env` 可让该产物保留 .env。
 
-tools/test test/payload.bats              # 载荷棘轮：各模块字节基线（只允许下降/持平）
-PAYLOAD_UPDATE=1 tools/test test/payload.bats   # 增长后刷新基线
+tools/test payload.bats                   # 载荷棘轮：各模块字节基线（只允许下降/持平）
+PAYLOAD_UPDATE=1 tools/test payload.bats  # 增长后刷新基线
 ```
 
 > `test/payload.bats` 的数值依赖 shfmt 版本；无 shfmt 时不压缩，数值会更大。
