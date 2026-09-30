@@ -210,3 +210,18 @@ line2" ]
 	[[ -n $_SYSTEM_OS ]]
 	[[ -n $_SYSTEM_ARCH ]]
 }
+
+@test "system.gui_supported - 有 DISPLAY 时为真" {
+	run bash -c 'source "$1/lib/std/import.sh"; import std/system; DISPLAY=:0 system.gui_supported' _ "$PROJECT_ROOT"
+	assert_success
+}
+
+@test "system.gui_supported - 有 WAYLAND_DISPLAY 时为真" {
+	run bash -c 'source "$1/lib/std/import.sh"; import std/system; unset DISPLAY; WAYLAND_DISPLAY=wayland-0 system.gui_supported' _ "$PROJECT_ROOT"
+	assert_success
+}
+
+@test "system.gui_supported - 无显示为假" {
+	run env -u DISPLAY -u WAYLAND_DISPLAY bash -c 'source "$1/lib/std/import.sh"; import std/system; system.gui_supported' _ "$PROJECT_ROOT"
+	assert_failure
+}

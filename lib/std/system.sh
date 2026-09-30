@@ -3,6 +3,9 @@
 system.command.exist() { command -v "$1" > /dev/null 2>&1; }
 system.command.required() { ! system.command.exist "$1" && log.error "This module required \`$1\` command." && exit 1 || return 0; }
 
+# 是否有图形会话（X11 或 Wayland）
+system.gui_supported() { [[ -n ${DISPLAY:-} || -n ${WAYLAND_DISPLAY:-} ]]; }
+
 system.command.result() {
 	local result
 	result=$(eval "$1" 2>&1) || {
