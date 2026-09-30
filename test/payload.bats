@@ -51,7 +51,7 @@ _payload_size() {
 	local mod
 	: > "$BASELINE"
 	for mod in core/args core/log core/usage core/config core/config.persist core/report \
-		std/array std/map std/string std/fs std/path std/system std/console std/console.layout \
+		std/array std/map std/string std/fs std/path std/system std/console std/console.layout std/console.epipe \
 		std/ansi std/markdown ext/requests ext/requests.sse ext/select ext/llm; do
 		printf '%s\t%s\n' "$mod" "$(_payload_size "$mod")" >> "$BASELINE"
 	done
