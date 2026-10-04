@@ -17,5 +17,7 @@ std/ansi	3288
 std/markdown	1358
 ext/requests	15620
 ext/requests.sse	16012
+ext/requests.cache	18124
+ext/github	18247
 ext/select	6533
 ext/llm	17263
