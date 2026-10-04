@@ -33,6 +33,16 @@ extract_imports() {
 declare -A _BUILD_SEEN=()
 declare -a _BUILD_ORDER=()
 
+# 解析 import：入口脚本所在目录的 lib/ 优先（脚本私有模块），再回退框架 _LIB_DIR
+_build_resolve() {
+	local mod="$1"
+	[[ -n ${_BUILD_LIB_DIR:-} && -f "$_BUILD_LIB_DIR/$mod.sh" ]] && {
+		printf '%s' "$_BUILD_LIB_DIR/$mod.sh"
+		return 0
+	}
+	[[ -f "$_LIB_DIR/$mod.sh" ]] && printf '%s' "$_LIB_DIR/$mod.sh"
+}
+
 # 深度优先后序收集：先内联依赖，再内联依赖它们的文件
 _collect_deps() {
 	local file="$1" mod resolved
@@ -40,8 +50,8 @@ _collect_deps() {
 	_BUILD_SEEN[$file]=1
 	while IFS= read -r mod; do
 		[[ -z $mod ]] && continue
-		resolved="$_LIB_DIR/$mod.sh"
-		[[ -f $resolved ]] || {
+		resolved="$(_build_resolve "$mod")"
+		[[ -n $resolved ]] || {
 			log.error "无法解析 import: $mod（来自 ${file#"$PROJECT_ROOT"/}）"
 			return 1
 		}
@@ -55,6 +65,8 @@ _collect_deps() {
 analyze_dependencies() {
 	_BUILD_SEEN=()
 	_BUILD_ORDER=()
+	_BUILD_LIB_DIR="$(cd "$(dirname "$1")" && pwd)/lib"
+	[[ -d $_BUILD_LIB_DIR ]] || _BUILD_LIB_DIR=""
 	_collect_deps "$1" || return 1
 	printf '%s\n' "${_BUILD_ORDER[@]}"
 }

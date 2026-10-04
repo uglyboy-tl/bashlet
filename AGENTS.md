@@ -58,6 +58,8 @@ tools/test args.bats       # 运行单个测试文件（相对 test/，不要带
 tools/test -x requests     # 排除 requests（访问网络，最慢；改非 requests 模块时用它）
 tools/test -j 4            # 并行运行
 tools/build src/x.sh -o x  # 内联依赖成单文件（shfmt 可选；默认剥离 .env，`# build:keep-env` 可保留）
+                           # import 解析顺序：入口目录的 lib/ 优先（脚本私有模块），再回退框架 lib/
+                           # 所以脚本可以自带 lib/ 放私有模块，与框架模块同名不冲突
 tools/install              # 在宿主仓库建立 lib/ 与 test/ 软链，生成 src/example.sh
 ```
 
