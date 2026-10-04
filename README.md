@@ -20,7 +20,7 @@
 ```
 core/   领域装配：args · log · usage · report        （依赖 std/）
 std/    标准库：import · array · map · string · fs · path · system · console · console.layout · console.epipe · ansi · markdown
-ext/    可选重能力：requests · requests.sse · select · llm
+ext/    可选重能力：requests · requests.sse · requests.cache · github · select · llm
 ```
 
 - **终端 vs 标记两条介质分开**：`std/console`（终端）与 `std/markdown`（标记）互不依赖。
@@ -85,6 +85,8 @@ tools/build src/example.sh -o example
 |------|------|
 | `requests` | HTTP 请求封装（get/post/…、响应解析、download） |
 | `requests.sse` | SSE 流式请求（仅少数脚本需要，独立模块） |
+| `requests.cache` | HTTP 条件缓存（TTL + ETag/Last-Modified，远端未变时只刷新时间戳） |
+| `github` | GitHub API 薄封装（release 查询、资产名匹配、contents、raw URL） |
 | `select` | 选择器：fzf / rofi / 原生，按 `SELECT_UI` 分派 |
 | `llm` | OpenAI 兼容 chat / 流式 chat |
 
@@ -114,6 +116,10 @@ tools/build src/example.sh -o example
 **ext/requests**：`init` `timeout` `base_url` `auth` `auth_bearer` `headers.append` `headers.clear` `get` `post` `put` `delete` `patch` `head` `options` `download` `json` `status_code` `headers` `text` `success` `raise_for_status`
 > `ext/requests` 必须先调 `requests.init`（定位 curl/jq、设默认头）；不再有懒初始化。
 **ext/requests.sse**：`sse`
+**ext/requests.cache**：`path` `fresh` `fetch` `ensure`
+> `requests.cache.ensure URL [ttl秒]`：TTL 内零请求，过期发条件请求；回源失败但有旧缓存时降级使用。内容用 `requests.cache.path URL` 取。
+**ext/github**：`init` `api` `release.latest` `release.first` `release.version` `release.pick` `asset.arch_regex` `asset.pattern` `asset.url` `contents.list` `raw.url`
+> `github.init` 先调 `requests.init`，参数透传；有 `GITHUB_TOKEN` 时自动加认证头。`asset.pattern` 展开 `{os}`/`{arch}` 占位符供 `asset.url`/`release.pick` 使用。
 **ext/select**：`one` `many` `ui` `gui.supported`
 **ext/llm**：`init` `api_key` `base_url` `model` `chat` `chat.stream`
 
