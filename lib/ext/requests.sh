@@ -15,7 +15,7 @@ declare -gA _REQUESTS_AUTH=()
 declare -g _REQUESTS_CURL=""
 declare -g _REQUESTS_JQ=""
 
-# 用法约束：所有请求函数前必须先调 requests.init（它负责定位 curl/jq 并设置默认头）。
+# 用法约束：所有请求函数前必须先调 requests.init（它负责定位 curl/jq 并重置默认头/认证/base_url）。
 requests.init() {
 	declare -ga _REQUESTS_CURL_EXTRA=("$@")
 
@@ -27,6 +27,9 @@ requests.init() {
 		["Accept-Encoding"]="gzip, deflate"
 		["Connection"]="keep-alive"
 	)
+	# 一并清掉上一轮的认证与 base_url，否则同进程内复用（如逐 provider 循环）会串凭证/串域名
+	_REQUESTS_AUTH=()
+	_REQUESTS_BASE_URL=""
 
 	log.debug "requests module initialized: curl=$_REQUESTS_CURL, jq=$_REQUESTS_JQ"
 	return 0
@@ -90,24 +93,26 @@ requests.request() {
 
 	trap 'rm -f "${temp_body:-}" "${temp_headers:-}"' EXIT
 
-	# 执行 curl 命令
-	local status_code=$("${curl_cmd[@]}" -w "%{http_code}" -D "$temp_headers" -o "$temp_body" 2> /dev/null)
+	# 执行 curl 命令；用 || 抑制 errexit 以保住 curl 退出码：
+	# 传输中断/截断时即使 HTTP 是 2xx 也不算成功
+	local status_code curl_exit=0
+	status_code=$("${curl_cmd[@]}" -w "%{http_code}" -D "$temp_headers" -o "$temp_body" 2> /dev/null) || curl_exit=$?
 
 	local body_base64="$(string.base64.encode "$temp_body")"
 
 	# 解析响应头为 JSON (使用 jq)
 	local headers_json="$("$_REQUESTS_JQ" -Rs 'split("\n") | map(select(length > 0 and test(":"))) | map(split(": ") | {(.[0]): .[1] | rtrimstr("\r")}) | add // {}' "$temp_headers")"
 
-	# 判断是否成功 (2xx 状态码)
+	# 判断是否成功 (curl 正常结束且 2xx)
 	local success="false"
-	[[ $status_code =~ ^2[0-9][0-9]$ ]] && success="true"
+	[[ $status_code =~ ^2[0-9][0-9]$ && $curl_exit -eq 0 ]] && success="true"
 
 	# 构建 JSON 响应
-	echo "{\"status_code\":$status_code,\"headers\":$headers_json,\"body\":\"$body_base64\",\"success\":$success}"
+	echo "{\"status_code\":$status_code,\"curl_exit\":$curl_exit,\"headers\":$headers_json,\"body\":\"$body_base64\",\"success\":$success}"
 }
 
 requests.download() {
-	local curl_cmd=("$_REQUESTS_CURL" "-L" "--globoff")
+	local curl_cmd=("$_REQUESTS_CURL" "-L" "--globoff" "--fail")
 	# 默认不附加认证头，与 requests.get()/post() 行为不同，
 	# 如需认证请使用 URL 参数或直接调用 requests.request()
 	requests.curl.configure curl_cmd "" false
@@ -199,6 +204,9 @@ requests.options() { requests.request "OPTIONS" "$1" "" ""; }
 # 提取状态码
 requests.status_code() { "$_REQUESTS_JQ" -r '.status_code' <<< "$1"; }
 
+# 提取 curl 退出码（非 0 表示传输层失败，即使 HTTP 是 2xx）
+requests.exit_code() { "$_REQUESTS_JQ" -r '.curl_exit' <<< "$1"; }
+
 # 提取响应头 (可选指定字段名)
 requests.headers() { [[ -n ${2:-} ]] && "$_REQUESTS_JQ" -r --arg name "$2" '.headers[$name] // empty' <<< "$1" || "$_REQUESTS_JQ" -r '.headers' <<< "$1"; }
 
@@ -214,7 +222,7 @@ requests.json() {
 requests.success() { "$_REQUESTS_JQ" -r '.success' <<< "$1"; }
 
 # 检查 HTTP 错误，非零退出 (类似 requests.raise_for_status())
-requests.raise_for_status() { [[ "$(requests.success "${1:-}")" == "true" ]] || { log.error "HTTP error: status code $(requests.status_code "${1:-}")" && return 1; }; }
+requests.raise_for_status() { [[ "$(requests.success "${1:-}")" == "true" ]] || { log.error "HTTP error: status $(requests.status_code "${1:-}") curl_exit $(requests.exit_code "${1:-}")" && return 1; }; }
 
 # 设置超时时间 (秒)
 requests.timeout() { string.natural.check "$1" && _REQUESTS_TIMEOUT="$1" || { log.error "timeout must be a positive integer" && return 1; }; }
@@ -229,7 +237,7 @@ requests.headers.append() {
 		local value="$1"
 		shift
 		_REQUESTS_HEADERS["$key"]="$value"
-		log.debug "default header set: $key: $value"
+		log.debug "default header set: $key" # 不记值，避免密钥进日志
 
 		# 获取下一个键值对
 		key="${1:-}"

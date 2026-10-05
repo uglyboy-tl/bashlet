@@ -38,6 +38,14 @@ requests.reset() {
 
 # ============ 依赖检查测试 ============
 
+@test "requests.init() 重置认证与 base_url" {
+	requests.auth_bearer "SECRET"
+	requests.base_url "https://example.com"
+	requests.init
+	[[ ${#_REQUESTS_AUTH[@]} -eq 0 ]]
+	[[ -z $_REQUESTS_BASE_URL ]]
+}
+
 @test "requests.init() 检查 curl 和 jq" {
 	run requests.init
 	[ "$status" -eq 0 ]
@@ -266,6 +274,15 @@ requests.reset() {
 	error_response=$(requests.get "https://httpbin.org/status/404")
 	success=$(requests.success "$error_response")
 	[ "$success" = "false" ]
+}
+
+@test "requests 传输失败（curl 退出码非 0）不算成功" {
+	requests.timeout 2
+	# 未监听的本地端口：连接被拒绝
+	response=$(requests.get "http://127.0.0.1:9/")
+	[[ $(requests.status_code "$response") =~ ^0+$ ]]
+	[ "$(requests.success "$response")" = "false" ]
+	[ "$(requests.exit_code "$response")" -ne 0 ]
 }
 
 @test "requests.raise_for_status() 错误时返回非零" {
