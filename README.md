@@ -113,7 +113,7 @@ tools/build src/example.sh -o example
 **std/ansi**：`enable` `disable` `enable.color` `disable.color` `enable.style` `enable.powerline` `Color.IsAvailable` `Powerline.IsAvailable`
 **std/markdown**：`escape` `header` `h1`…`h6` `list` `numbered` `todo` `table.header` `table.row` `code` `line` `link` `quote` `front_matter`
 
-**ext/requests**：`init` `timeout` `base_url` `auth` `auth_bearer` `headers.append` `headers.clear` `get` `post` `put` `delete` `patch` `head` `options` `download` `json` `status_code` `headers` `text` `success` `raise_for_status`
+**ext/requests**：`init` `timeout` `base_url` `auth` `auth_bearer` `headers.append` `headers.clear` `get` `post` `put` `delete` `patch` `head` `options` `download` `json` `status_code` `exit_code` `headers` `text` `success` `raise_for_status`
 > `ext/requests` 必须先调 `requests.init`（定位 curl/jq、设默认头）；不再有懒初始化。
 **ext/requests.sse**：`sse`
 **ext/requests.cache**：`path` `fresh` `fetch` `ensure`
