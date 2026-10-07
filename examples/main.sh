@@ -6,7 +6,7 @@ VERSION="1.0.0"
 PROJECT_ROOT="$(cd "${BASH_SOURCE[0]%/*}/.." && pwd)"
 source "$PROJECT_ROOT/lib/std/import.sh"
 
-.env # 可选：加载 .env（脚本目录优先，回退当前工作目录）
+.env # 可选：加载调用方脚本所在目录的 .env（裸文件名运行时该目录即 CWD）
 
 import core/args
 import core/log

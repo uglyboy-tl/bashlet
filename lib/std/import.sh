@@ -28,4 +28,13 @@ import() {
 	done
 }
 
-.env() { local _d="${BASH_SOURCE[1]:-}"; _d="${_d%/*}"; [[ $_d != "${BASH_SOURCE[1]:-}" ]] || _d="."; [[ -f "$_d/.env" ]] || _d="."; [[ -f "$_d/.env" ]] && source "$_d/.env" || true; }
+# 只加载调用方脚本所在目录的 .env，不回退当前工作目录：
+# 否则在不受信的仓库里执行本脚本，就会 source 对方的 .env（任意 shell 代码）。
+# 以裸文件名调用（`bash binup.sh`）时 BASH_SOURCE 没有目录部分，此时脚本目录就是 CWD。
+.env() {
+	local _d="${BASH_SOURCE[1]:-}"
+	# 无调用方文件（交互 shell / bash -c）时不去猜：唯一的候选就是 CWD，那正是要避开的
+	[[ -n $_d ]] || return 0
+	[[ $_d == */* ]] && _d="${_d%/*}" || _d="."
+	[[ -f "$_d/.env" ]] && source "$_d/.env" || true
+}

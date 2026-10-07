@@ -252,7 +252,7 @@ EOF
 	rm -rf deep
 }
 
-@test ".env - 脚本目录无 .env 时回退到运行目录（CWD）" {
+@test ".env - 脚本目录无 .env 时不回退到运行目录（CWD）" {
 	local tmpdir rundir import_path
 	tmpdir=$(mktemp -d)
 	rundir=$(mktemp -d)
@@ -269,9 +269,30 @@ SH
 	cd "$rundir"
 	run bash "$tmpdir/helper.sh" "$import_path"
 	[[ "$status" -eq 0 ]]
-	[[ "$output" == "TEST_VAR=rundir_value" ]]
+	[[ "$output" == "TEST_VAR=unset" ]]
 
 	rm -rf "$tmpdir" "$rundir"
+}
+
+@test ".env - 裸文件名调用时加载同目录 .env（此时脚本目录即 CWD）" {
+	local tmpdir import_path
+	tmpdir=$(mktemp -d)
+	import_path="$PROJECT_ROOT/lib/std/import.sh"
+
+	echo "TEST_VAR=bare_value" > "$tmpdir/.env"
+
+	cat > "$tmpdir/helper.sh" << 'SH'
+source "$1"
+.env
+echo "TEST_VAR=${TEST_VAR:-unset}"
+SH
+
+	cd "$tmpdir"
+	run bash helper.sh "$import_path"
+	[[ "$status" -eq 0 ]]
+	[[ "$output" == "TEST_VAR=bare_value" ]]
+
+	rm -rf "$tmpdir"
 }
 
 @test ".env - 从脚本所在目录加载 .env" {
@@ -294,7 +315,7 @@ SH
 	rm -rf "$tmpdir"
 }
 
-@test ".env - 脚本目录 .env 优先于运行目录" {
+@test ".env - 脚本目录 .env 优先于运行目录（不回退 CWD，故只用脚本目录那份）" {
 	local tmpdir rundir import_path
 	tmpdir=$(mktemp -d)
 	rundir=$(mktemp -d)
@@ -324,4 +345,18 @@ SH
 	run .env
 	[[ "$status" -eq 0 ]]
 	rm -rf "$tmpdir"
+}
+
+@test ".env - 无调用方文件（bash -c）时不加载 CWD 的 .env" {
+	local rundir import_path
+	rundir=$(mktemp -d)
+	import_path="$PROJECT_ROOT/lib/std/import.sh"
+	echo "TEST_VAR=cwd_value" > "$rundir/.env"
+
+	cd "$rundir"
+	run bash -c 'source "$1"; .env; echo "TEST_VAR=${TEST_VAR:-unset}"' _ "$import_path"
+	[[ "$status" -eq 0 ]]
+	[[ "$output" == "TEST_VAR=unset" ]]
+
+	rm -rf "$rundir"
 }
