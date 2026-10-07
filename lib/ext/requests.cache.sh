@@ -9,7 +9,8 @@ import ext/requests
 # ETag/Last-Modified 做条件请求——远端未变更时只刷新时间戳（304），不重复下载。
 #
 # 契约：与 requests 一致，调用前先 requests.init。
-# 本模块会自行设置 If-None-Match / If-Modified-Since，调用方不要再设这两个头。
+# 本模块会自行设置 If-None-Match / If-Modified-Since（只在本次请求的子 shell 内生效，
+# 不外泄到全局默认头），调用方不要再设这两个头。
 
 # 缓存文件路径：存储交给 std/cache（<cache_dir>/http/<URL 哈希>），本模块只管 HTTP 那部分
 requests.cache.path() { cache.path http "$(cache.key "$1")"; }
@@ -20,20 +21,26 @@ requests.cache.fresh() { cache.fresh "$1" "${2:-0}"; }
 # 回源取内容：带验证器发条件请求，304 只 touch 缓存，2xx 覆盖缓存并记录验证器
 # 返回 0=缓存可用，1=失败
 requests.cache.fetch() {
-	local url="$1" cache meta tmp response code etag modified
+	local url="$1" cache meta tmp response code etag="" modified=""
 	cache=$(requests.cache.path "$url") || return 1
 	meta="$cache.meta"
 	tmp="$cache.tmp"
-	mkdir -p "${cache%/*}"
 
 	if [[ -f $cache && -f $meta ]]; then
 		etag=$(sed -n 's/^etag=//p' "$meta")
 		modified=$(sed -n 's/^last-modified=//p' "$meta")
-		[[ -n $etag ]] && requests.headers.append "If-None-Match" "$etag"
-		[[ -z $etag && -n $modified ]] && requests.headers.append "If-Modified-Since" "$modified"
 	fi
 
-	response=$(requests.get "$url") || return 1
+	# 条件头放进子 shell：requests.headers.append 写的是全局 _REQUESTS_HEADERS，
+	# 直接在父 shell 里追加会让同进程后续请求（如 add 后再 github.api）串验证器。
+	response=$(
+		if [[ -n $etag ]]; then
+			requests.headers.append "If-None-Match" "$etag"
+		elif [[ -n $modified ]]; then
+			requests.headers.append "If-Modified-Since" "$modified"
+		fi
+		requests.get "$url"
+	) || return 1
 	code=$(requests.status_code "$response")
 
 	if [[ $code == "304" ]]; then

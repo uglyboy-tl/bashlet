@@ -66,6 +66,54 @@ teardown() {
 	assert_success
 }
 
+@test "requests.cache.fetch - 无旧缓存时 200 直接写入（set -u 下不因验证器未赋值而崩）" {
+	local cache
+	cache=$(requests.cache.path "$URL")
+
+	# bats 只开 -eET，不起 -u：验证器未初始化的坑要子进程显式开 -u 才照得出来
+	run env SCRIPT_CACHE_DIR="$SCRIPT_CACHE_DIR" bash -c '
+		set -euo pipefail
+		source "$1/lib/std/import.sh"
+		import ext/requests.cache
+		requests.init
+		requests.get() { echo STUB; }
+		requests.status_code() { echo 200; }
+		requests.success() { echo true; }
+		requests.text() { echo fresh; }
+		requests.headers() { :; }
+		requests.cache.fetch "$2"
+	' _ "$PROJECT_ROOT" "$URL"
+	assert_success
+
+	run cat "$cache"
+	assert_output "fresh"
+}
+
+@test "requests.cache.fetch - 条件头不外泄到全局默认头" {
+	local cache got="$BATS_TEST_TMPDIR/got"
+	cache=$(requests.cache.path "$URL")
+	mkdir -p "${cache%/*}"
+	echo old > "$cache"
+	printf 'etag="old"\n' > "$cache.meta"
+	export STUB_CODE=200 STUB_BODY="hello"
+
+	# 覆盖 setup 的桩：真实写入全局头，并记录本次请求实际带上的条件头
+	requests.headers.append() { _REQUESTS_HEADERS["$1"]="$2"; }
+	requests.get() {
+		printf '%s' "${_REQUESTS_HEADERS["If-None-Match"]:-}" > "$got"
+		echo "STUB"
+	}
+
+	# 不走 run：run 自带子 shell，父 shell 的 _REQUESTS_HEADERS 恒不被污染，断言会空转
+	requests.cache.fetch "$URL" > /dev/null
+
+	run cat "$got"
+	assert_output '"old"'
+
+	# 条件头只活在 fetch 内部的子 shell；漏进全局就会串到同进程的后续请求
+	[[ -z ${_REQUESTS_HEADERS["If-None-Match"]:-} ]]
+}
+
 @test "requests.cache.fetch - 304 只刷新时间戳，不覆盖内容" {
 	export STUB_CODE=304
 	local cache
