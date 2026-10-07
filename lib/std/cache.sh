@@ -18,7 +18,6 @@ import std/path
 cache.dir() {
 	local dir
 	dir="$(path.cache_dir)" || return 1
-	mkdir -p "$dir" || return 1
 	[[ -n ${1:-} ]] && dir="$dir/$1"
 	mkdir -p "$dir" 2> /dev/null || return 1
 	printf '%s' "$dir"
@@ -26,14 +25,14 @@ cache.dir() {
 
 # <段...> → 定长键（内容相同则键相同；段序不同、段里含分隔符都不会撞）
 cache.key() {
-	local raw
-	raw="$(printf '%s\0' "$@")"
+	# 不走命令替换：bash 的命令替换会丢弃 NUL 并往 stderr 告警，
+	# 分隔符一丢，cache.key a b 与 cache.key ab 就撞成同一个键
 	# 用内建判断，避免为一个哈希函数拖进 std/system
 	if command -v sha256sum > /dev/null 2>&1; then
-		printf '%s' "$raw" | sha256sum | cut -c1-40
+		printf '%s\0' "$@" | sha256sum | cut -c1-40
 	else
 		# 没有 sha256sum 时退回 cksum；两段之间补个 -，别把「校验和 + 长度」粘成一个数
-		printf '%s' "$raw" | cksum | tr -s ' ' '-'
+		printf '%s\0' "$@" | cksum | tr -s ' ' '-'
 	fi
 }
 

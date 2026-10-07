@@ -133,4 +133,7 @@ setup() {
 @test "键函数 - 段里含分隔符也不会与多段调用撞键" {
 	[ "$(cache.key a b)" != "$(cache.key "$(printf 'a\nb')")" ]
 	[ "$(cache.key a b)" != "$(cache.key b a)" ]
+	# NUL 分隔符必须真到达哈希函数：命令替换会丢掉它，退化成纯拼接
+	[ "$(cache.key a b)" != "$(cache.key ab)" ]
+	[ "$(cache.key ab c)" != "$(cache.key a bc)" ]
 }
