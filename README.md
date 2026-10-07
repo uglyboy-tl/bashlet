@@ -106,6 +106,7 @@ tools/build src/example.sh -o example
 **std/string**：`trim` `base64.encode` `base64.decode` `escape.regex` `escape.sed` `int.check` `natural.check` `float.check` `is_ascii` `has_ansi`
 **std/fs**：`file.exists` `dir.exists` `write` `find` `replace` `insert` `rmline` `cleanup` `mktemp` `file.extract`
 **std/path**：`script_name` `config_dir` `data_dir` `state_dir` `cache_dir` `log_dir` `local_config_dir`
+**std/cache**：`dir` `key` `path` `fresh` `put` `get` `clear`
 **std/system**：`command.exist` `command.required` `command.result` `gui_supported` `os` `arch`
 **std/console**：`stdout` `stderr` `repeat` `align` `indent` `list` `ansi_width` `mixed_width` `display_width`
 **std/console.layout**：`section` `footer` `item.title` `item.item` `item.mid` `item.end`

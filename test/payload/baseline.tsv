@@ -9,6 +9,7 @@ std/map	237
 std/string	711
 std/fs	2059
 std/path	938
+std/cache	2132
 std/system	1130
 std/console	2252
 std/console.layout	2840
@@ -17,7 +18,7 @@ std/ansi	3288
 std/markdown	1358
 ext/requests	15844
 ext/requests.sse	16236
-ext/requests.cache	18348
+ext/requests.cache	19334
 ext/github	18471
 ext/select	6533
 ext/llm	17487
