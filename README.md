@@ -19,7 +19,7 @@
 
 ```
 core/   领域装配：args · log · usage · report        （依赖 std/）
-std/    标准库：import · array · map · string · fs · path · system · console · console.layout · console.epipe · ansi · markdown
+std/    标准库：import · array · map · string · fs · path · system · console · console.layout · console.epipe · ansi · ansi.powerline · markdown
 ext/    可选重能力：requests · requests.sse · requests.cache · github · select · llm
 ```
 
@@ -66,7 +66,7 @@ tools/build src/example.sh -o example
 
 | 模块 | 功能 |
 |------|------|
-| `import` | `import`、`source` 去重、`.env`（脚本目录优先，回退 CWD） |
+| `import` | `import`、`source` 去重、`.env`（只取调用方脚本所在目录；裸文件名运行时该目录即 CWD） |
 | `array` | 索引数组操作 |
 | `map` | 关联数组操作 |
 | `string` | 字符串/类型/转义/base64 |
@@ -76,7 +76,8 @@ tools/build src/example.sh -o example
 | `console` | 终端原语：写、宽度、对齐、重复、对齐列表 |
 | `console.layout` | 终端组合渲染：section、缩进条目、footer |
 | `console.epipe` | 非交互输出安全：忽略 SIGPIPE、非 tty 时重定向到日志 |
-| `ansi` | 颜色/样式/powerline 转义码 |
+| `ansi` | 颜色/样式转义码 |
+| `ansi.powerline` | powerline/Unicode 字形表（按需 import，底座不背） |
 | `markdown` | Markdown 原语（标题、列表、表格、代码…） |
 
 ### ext/
@@ -101,17 +102,18 @@ tools/build src/example.sh -o example
 **core/config.persist**：`update` `save`
 **core/report**：`dir.set` `reset` `init` `section` `subsection` `code` `table.begin` `table.add` `table.end` `export`
 
-**std/array**：`len` `contains` `append` `get` `type` `has_duplicates`
+**std/array**：`len` `contains` `append` `get` `has_duplicates`
 **std/map**：`len` `contains` `get`
 **std/string**：`trim` `base64.encode` `base64.decode` `escape.regex` `escape.sed` `int.check` `natural.check` `float.check` `is_ascii` `has_ansi`
 **std/fs**：`file.exists` `dir.exists` `write` `find` `replace` `insert` `rmline` `cleanup` `mktemp` `file.extract`
-**std/path**：`script_name` `config_dir` `data_dir` `state_dir` `cache_dir` `log_dir` `local_config_dir`
+**std/path**：`script_name` `config_dir` `data_dir` `state_dir` `cache_dir` `log_dir`
 **std/cache**：`dir` `key` `path` `fresh` `put` `get` `clear`
 **std/system**：`command.exist` `command.required` `command.result` `gui_supported` `os` `arch`
-**std/console**：`stdout` `stderr` `repeat` `align` `indent` `list` `ansi_width` `mixed_width` `display_width`
+**std/console**：`stdout` `stderr` `repeat` `align` `indent` `ansi_width` `mixed_width` `display_width`
 **std/console.layout**：`section` `footer` `item.title` `item.item` `item.mid` `item.end`
 **std/console.epipe**：`init`
-**std/ansi**：`enable` `disable` `enable.color` `disable.color` `enable.style` `enable.powerline` `Color.IsAvailable` `Powerline.IsAvailable`
+**std/ansi**：`enable` `disable` `enable.color` `disable.color` `enable.style` `disable.style` `Color.IsAvailable`
+**std/ansi.powerline**：`enable.powerline` `disable.powerline` `Powerline.IsAvailable`（需 import 本模块才有 `POWERLINE_*`；`ansi.disable` 只重置颜色与样式）
 **std/markdown**：`escape` `header` `h1`…`h6` `list` `numbered` `todo` `table.header` `table.row` `code` `line` `link` `quote` `front_matter`
 
 **ext/requests**：`init` `timeout` `base_url` `auth` `auth_bearer` `headers.append` `headers.clear` `get` `post` `put` `delete` `patch` `head` `options` `download` `json` `status_code` `exit_code` `headers` `text` `success` `raise_for_status`
@@ -128,7 +130,7 @@ tools/build src/example.sh -o example
 
 - 函数命名 `模块.函数名()`；全局 `_MODULE_VAR`，局部 `local`。
 - 性能优先：优先 Bash 内建/参数展开，避免外部命令与子 shell。
-- **不重造轮子**：动手前先查上面的函数速查（如数组用 `array.contains/get`、对齐输出用 `console.align/list`）。详见 `AGENTS.md`。
+- **不重造轮子**：动手前先查上面的函数速查（如数组用 `array.contains/get`、对齐输出用 `console.align`）。详见 `AGENTS.md`。
 - 代码极简：单行函数、紧凑逻辑、尽早返回。
 
 ## 构建与测试

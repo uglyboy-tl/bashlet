@@ -31,7 +31,7 @@ PAYLOAD_UPDATE=1 tools/test payload.bats  # 增长后刷新基线
 | XDG 目录、脚本名 | `path.config_dir`/`data_dir`/`state_dir`/`cache_dir` |
 | 外部命令探测、OS/架构 | `system.command.exist`/`required`、`system.os`/`arch` |
 | 图形会话探测 | `system.gui_supported` |
-| 终端写/宽度/对齐/重复 | `console.stdout`/`stderr`、`console.display_width`、`console.align`、`console.repeat`、`console.list` |
+| 终端写/宽度/对齐/重复 | `console.stdout`/`stderr`、`console.display_width`、`console.align`、`console.repeat`、`console.indent` |
 | 终端 section / 缩进条目 / footer | `console.layout.*` |
 | Markdown | `markdown.*` |
 | HTTP / 下载 / SSE | `ext/requests`（`requests.download` 在同一模块；`requests.sse` 在 `ext/requests.sse`） |
@@ -43,7 +43,7 @@ PAYLOAD_UPDATE=1 tools/test payload.bats  # 增长后刷新基线
 ```
 bashlet/
 ├── lib/core/      # 领域装配：args log usage config config.persist report
-├── lib/std/       # 标准库：import array map string fs path system console console.layout console.epipe ansi markdown
+├── lib/std/       # 标准库：import array map string fs path system console console.layout console.epipe ansi ansi.powerline markdown
 ├── lib/ext/       # 可选：requests requests.sse select llm
 ├── tools/         # install / build / test
 ├── test/          # Bats 测试（每个模块一个 <name>.bats）
@@ -70,7 +70,7 @@ tools/install              # 在宿主仓库建立 lib/ 与 test/ 软链，生�
 **函数**: `模块.函数名()`。**函数前缀必须等于文件名/模块名**（拆分模块时一并改名）。
 
 ```bash
-args.process()    array.len()    map.get()    console.list()
+args.process()    array.len()    map.get()    console.align()
 ```
 
 **变量**: `_MODULE_VAR` (全局), `local var` (局部)
