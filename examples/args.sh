@@ -21,6 +21,7 @@ source "$PROJECT_ROOT/lib/std/import.sh"
 
 import core/args
 import core/log
+import std/ansi.powerline
 
 VERSION="1.0.0"
 

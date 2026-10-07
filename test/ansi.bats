@@ -18,11 +18,6 @@ teardown() {
 	[[ $status -eq 0 || $status -eq 1 ]]
 }
 
-@test "ansi.Powerline.IsAvailable - 返回函数" {
-	run ansi.Powerline.IsAvailable
-	[[ $status -eq 0 || $status -eq 1 ]]
-}
-
 # ============ 启用/禁用颜色测试 ============
 
 @test "ansi.enable.color() 设置颜色变量" {
@@ -54,25 +49,6 @@ teardown() {
 	[[ -z $Underline ]]
 }
 
-@test "ansi.is.initialized() 检测初始化状态" {
-	run ansi.is.initialized
-	# 导入时已启用，如果终端支持则返回0
-}
-
-# ============ 启用/禁用 Powerline 测试 ============
-
-@test "ansi.enable.powerline() 设置 Powerline 变量" {
-	run ansi.enable.powerline
-	[[ $status -eq 0 ]]
-}
-
-@test "ansi.disable.powerline() 重置 Powerline 为 ASCII" {
-	ansi.disable.powerline
-	[[ $POWERLINE_SEPARATOR == ">" ]]
-	[[ $POWERLINE_BRANCH == "|}" ]]
-	[[ $POWERLINE_OK == "+" ]]
-}
-
 # ============ 主入口函数测试 ============
 
 @test "ansi.enable() 根据检测启用功能" {
@@ -80,21 +56,22 @@ teardown() {
 	[[ $status -eq 0 ]]
 }
 
-@test "ansi.disable() 禁用所有功能" {
+@test "ansi.disable() 禁用颜色与样式" {
 	ansi.disable
 	[[ -z $RED ]]
 	[[ -z $Bold ]]
-	[[ $POWERLINE_SEPARATOR == ">" ]]
 }
 
 # ============ 环境变量控制测试 ============
 
-@test "BASHLET_ANSI_FORCE_DISABLE 强制禁用颜色" {
-	export BASHLET_ANSI_FORCE_DISABLE=1
-	import std/ansi.sh
-	[[ -z $RED ]]
-	[[ -z $Bold ]]
-	unset BASHLET_ANSI_FORCE_DISABLE
+@test "_ANSI_FORCE_DISABLE 强制禁用颜色与样式" {
+	run env _ANSI_FORCE_DISABLE=1 bash -c '
+		set -euo pipefail
+		source "$1"
+		import std/ansi
+		[[ -z $RED && -z $Bold ]]
+	' _ "$PROJECT_ROOT/lib/std/import.sh"
+	assert_success
 }
 
 # ============ 变量使用场景测试 ============
@@ -109,29 +86,6 @@ teardown() {
 	ansi.enable.style
 	local msg="${Bold}bold text${NC}"
 	[[ -n $msg ]]
-}
-
-@test "使用 Powerline 变量" {
-	ansi.disable.powerline
-	local prompt="${POWERLINE_SEPARATOR} prompt"
-	[[ $prompt == "> prompt" ]]
-
-	ansi.enable.powerline
-	[[ -n $POWERLINE_SEPARATOR ]]
-}
-
-@test "组合颜色、样式和 Powerline" {
-	ansi.enable.color
-	ansi.enable.style
-	local msg="${RED}${Bold}Error${NC}: ${POWERLINE_FAIL} failed"
-	[[ -n $msg ]]
-}
-
-@test "使用 Powerline 分隔符构建 prompt" {
-	ansi.enable.color
-	ansi.enable.powerline
-	local prompt="${GREEN} user ${NC}${POWERLINE_SEPARATOR}${BLUE} dir ${NC}${POWERLINE_SEPARATOR}${NC}"
-	[[ -n $prompt ]]
 }
 
 # ============ 边界条件测试 ============
@@ -198,21 +152,6 @@ teardown() {
 	[[ -n $bold_text ]]
 	[[ -n $italic_text ]]
 	[[ -n $underline_text ]]
-}
-
-@test "Git 提示符：使用 Powerline 分支符号" {
-	ansi.enable.powerline
-	local git_prompt="${POWERLINE_BRANCH} main"
-	[[ -n $git_prompt ]]
-}
-
-@test "状态显示：使用 Powerline 符号表示状态" {
-	ansi.disable.powerline
-	local success="${POWERLINE_OK} Done"
-	local failed="${POWERLINE_FAIL} Failed"
-
-	[[ $success == "+ Done" ]]
-	[[ $failed == "x Failed" ]]
 }
 
 @test "帮助文本：使用颜色和样式突出显示" {
