@@ -239,6 +239,17 @@ requests.reset() {
 	[ $? -eq 0 ]
 }
 
+@test "requests._headers_json() 多响应块只取最后一块（-L 跳转场景）" {
+	local f="$BATS_TEST_TMPDIR/headers.txt" json
+	printf 'HTTP/1.1 302 Found\r\nETag: "intermediate"\r\nLocation: /final\r\n\r\nHTTP/1.1 200 OK\r\nETag: "final"\r\nContent-Type: text/plain\r\n\r\n' > "$f"
+
+	json=$(requests._headers_json "$f")
+	[[ $(jq -r '.ETag' <<< "$json") == '"final"' ]]
+	[[ $(jq -r '."Content-Type"' <<< "$json") == "text/plain" ]]
+	# 中间响应独有的头不得残留（否则 requests.cache 会把跳转响应的验证器当成最终资源的）
+	[[ -z $(jq -r '.Location // empty' <<< "$json") ]]
+}
+
 @test "requests.text() 提取文本" {
 	requests.init
 	response=$(requests.get "https://httpbin.org/html")
@@ -660,6 +671,39 @@ requests.reset() {
 
 	# 验证额外参数在命令中
 	[[ " ${curl_cmd[*]} " == *" --connect-timeout 60 "* ]]
+}
+
+@test "requests.request.build() 默认跟随重定向（-L）" {
+	requests.init
+
+	local curl_cmd
+	requests.request.build curl_cmd "GET" "https://example.com/raw" "" ""
+	[[ " ${curl_cmd[*]} " == *" -L "* ]]
+}
+
+@test "requests.request.build() 带 body 的 POST 不传 -X（保留 curl 的规范跳转语义）" {
+	requests.init
+
+	local curl_cmd
+	requests.request.build curl_cmd "POST" "https://example.com/api" '{"a":1}' "application/json"
+	[[ " ${curl_cmd[*]} " != *" -X POST "* ]]
+	[[ " ${curl_cmd[*]} " == *" -d "* ]]
+
+	# 空 body 的 POST curl 推不出方法，必须自己补 -X
+	requests.request.build curl_cmd "POST" "https://example.com/api" "" ""
+	[[ " ${curl_cmd[*]} " == *" -X POST "* ]]
+
+	# 其他方法 curl 也推不出，保持 -X
+	requests.request.build curl_cmd "PUT" "https://example.com/api" '{"a":1}' "application/json"
+	[[ " ${curl_cmd[*]} " == *" -X PUT "* ]]
+}
+
+@test "requests.get() 不留临时文件" {
+	export TMPDIR="$BATS_TEST_TMPDIR/reqtmp"
+	mkdir -p "$TMPDIR"
+
+	run requests.get "http://127.0.0.1:9/nope"
+	[[ -z "$(ls -A "$TMPDIR")" ]]
 }
 
 @test "requests.get() 使用额外 curl 参数生效" {

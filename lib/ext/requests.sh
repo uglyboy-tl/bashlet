@@ -63,7 +63,14 @@ requests.request.build() {
 	local -r body="$4"
 	local -r content_type="${5:-$(requests.content_type.detect "$4")}"
 
-	cmd_ref=("$_REQUESTS_CURL" "-s" "--compressed" "-X" "$method")
+	# -L：跟随 3xx（GitHub raw 等必有跳转，不跟随会拿到空 body + 3xx 状态码）
+	# -X：只在 curl 自己推不出方法时补（GET/HEAD 与带 body 的 POST 都能推出来）。
+	# 带 body 的 POST 不传 -X，才能让 curl 对 301/302/303 按规范降级为 GET，
+	# 而不是像 -X POST 那样保留方法却把 body 丢掉（发个没有 body 的 POST）。
+	cmd_ref=("$_REQUESTS_CURL" "-s" "-L" "--compressed")
+	if [[ $method != POST || -z $body ]]; then
+		cmd_ref+=("-X" "$method")
+	fi
 	cmd_ref+=("${_REQUESTS_CURL_EXTRA[@]}")
 
 	requests.curl.configure cmd_ref "$_REQUESTS_TIMEOUT"
@@ -78,6 +85,14 @@ requests.request.build() {
 	cmd_ref+=("$full_url")
 }
 
+# 解析 curl -D 转储的响应头文件为 JSON。
+# -L 跟随跳转时文件里有多个响应块（中间的 3xx + 最终响应），只取最后一个：
+# 中间响应独有的 ETag/Last-Modified 若被 requests.cache 当成最终资源的验证器存下来，
+# 下次条件请求就会拿错值（最坏是巧合命中，拿到错误的 304）。
+requests._headers_json() {
+	"$_REQUESTS_JQ" -Rs '[splits("\r?\n\r?\n")] | map(select(length > 0)) | last // "" | split("\n") | map(select(length > 0 and test(":"))) | map(split(": ") | {(.[0]): .[1] | rtrimstr("\r")}) | add // {}' "$1"
+}
+
 requests.request() {
 	local -r method="$1"
 	local -r url="$2"
@@ -87,27 +102,37 @@ requests.request() {
 	local curl_cmd
 	requests.request.build curl_cmd "$method" "$url" "$body" "$content_type" || return 1
 
-	# 创建临时文件
-	local temp_body="$(fs.mktemp)" || return 1
-	local temp_headers="$(fs.mktemp)" || return 1
-
-	trap 'rm -f "${temp_body:-}" "${temp_headers:-}"' EXIT
+	# 创建临时文件（第二个失败时要收拾第一个，已不用 trap）
+	local temp_body
+	temp_body="$(fs.mktemp)" || return 1
+	local temp_headers
+	temp_headers="$(fs.mktemp)" || {
+		rm -f "$temp_body"
+		return 1
+	}
 
 	# 执行 curl 命令；用 || 抑制 errexit 以保住 curl 退出码：
 	# 传输中断/截断时即使 HTTP 是 2xx 也不算成功
 	local status_code curl_exit=0
 	status_code=$("${curl_cmd[@]}" -w "%{http_code}" -D "$temp_headers" -o "$temp_body" 2> /dev/null) || curl_exit=$?
 
-	local body_base64="$(string.base64.encode "$temp_body")"
-
-	# 解析响应头为 JSON (使用 jq)
-	local headers_json="$("$_REQUESTS_JQ" -Rs 'split("\n") | map(select(length > 0 and test(":"))) | map(split(": ") | {(.[0]): .[1] | rtrimstr("\r")}) | add // {}' "$temp_headers")"
+	# 不用 local x="$(...)"：local 恒返回 0，会把下面几处的失败吞掉
+	local body_base64 headers_json
+	body_base64="$(string.base64.encode "$temp_body")" || {
+		rm -f "$temp_body" "$temp_headers"
+		return 1
+	}
+	headers_json="$(requests._headers_json "$temp_headers")" || {
+		rm -f "$temp_body" "$temp_headers"
+		return 1
+	}
 
 	# 判断是否成功 (curl 正常结束且 2xx)
 	local success="false"
 	[[ $status_code =~ ^2[0-9][0-9]$ && $curl_exit -eq 0 ]] && success="true"
 
 	# 构建 JSON 响应
+	rm -f "$temp_body" "$temp_headers"
 	echo "{\"status_code\":$status_code,\"curl_exit\":$curl_exit,\"headers\":$headers_json,\"body\":\"$body_base64\",\"success\":$success}"
 }
 
