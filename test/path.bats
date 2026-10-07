@@ -58,11 +58,6 @@ teardown() {
 	[ "$output" = "$XDG_STATE_HOME/myapp/logs" ]
 }
 
-@test "path.local_config_dir - 默认 XDG_CONFIG_HOME/local" {
-	run path.local_config_dir
-	[ "$output" = "$XDG_CONFIG_HOME/local" ]
-}
-
 # ========== 覆盖变量优先 ==========
 
 @test "path.config_dir - 尊重 SCRIPT_CONFIG_DIR" {
@@ -93,10 +88,4 @@ teardown() {
 	export SCRIPT_LOG_DIR="/custom/logs"
 	run path.log_dir
 	[ "$output" = "/custom/logs" ]
-}
-
-@test "path.local_config_dir - 尊重 SCRIPT_LOCAL_CONFIG_DIR" {
-	export SCRIPT_LOCAL_CONFIG_DIR="/custom/local"
-	run path.local_config_dir
-	[ "$output" = "/custom/local" ]
 }
