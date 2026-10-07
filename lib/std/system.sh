@@ -25,7 +25,6 @@ system.command.result() {
 }
 
 system.os() {
-	[[ -n ${_SYSTEM_OS+x} ]] && echo "$_SYSTEM_OS" && return 0
 	case "$OSTYPE" in
 		darwin*) echo "macos" ;;
 		linux*) echo "linux" ;;
@@ -35,10 +34,11 @@ system.os() {
 		*) echo "unknown" ;;
 	esac
 }
-_SYSTEM_OS="$(system.os)"
 
+# 不做 import 期预计算（原来是 `_SYSTEM_ARCH="$(system.arch)"`）：调用点只有 ext/github，
+# 而 26 个 import 者里 24 个从不调用，eager 等于让每个脚本每次启动白付一次 fork（实测 ~2ms）。
+# 这里也不做调用期记忆化：调用方都是 `$(system.arch)`，函数内赋值出不了子 shell。
 system.arch() {
-	[[ -n ${_SYSTEM_ARCH+x} ]] && echo "$_SYSTEM_ARCH" && return 0
 	local -r arch="$(uname -m)"
 	case "$arch" in
 		x86_64 | x64 | amd64) echo "amd64" ;;
@@ -48,4 +48,3 @@ system.arch() {
 		*) echo "$arch" ;;
 	esac
 }
-_SYSTEM_ARCH="$(system.arch)"

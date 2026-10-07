@@ -9,10 +9,6 @@ setup() {
 	log.setLevel INFO # 屏蔽 log.error 输出
 }
 
-teardown() {
-	unset _SYSTEM_OS _SYSTEM_ARCH 2> /dev/null || true
-}
-
 # ============ system.command.exist 测试 ============
 
 @test "system.command.exist - 存在的命令返回成功" {
@@ -68,47 +64,12 @@ teardown() {
 	fi
 }
 
-@test "system.os - 缓存变量 _SYSTEM_OS 需要手动初始化" {
-	[[ -n $_SYSTEM_OS ]]
-}
-
-@test "system.os - 加载即初始化" {
-	result=$(system.os)
-	[[ -n $_SYSTEM_OS ]]
-}
-
-@test "system.os - 初始化后多次调用使用缓存" {
-	result1=$(system.os)
-	result2=$(system.os)
-	[ "$_SYSTEM_OS" = "$result1" ]
-	[ "$result1" = "$result2" ]
-}
-
-@test "system.os - 手动设置缓存后直接返回" {
-	export _SYSTEM_OS="custom_os"
-	result=$(system.os)
-	[ "$result" = "custom_os" ]
-}
-
-@test "system.arch - 手动设置缓存后直接返回" {
-	export _SYSTEM_ARCH="custom_arch"
-	result=$(system.arch)
-	[ "$result" = "custom_arch" ]
-}
-
 # ============ 集成测试 ============
 
 @test "集成测试 - system.os 和 system.arch 返回有效值" {
 	os=$(system.os)
 	arch=$(system.arch)
 	[[ -n $os && -n $arch ]]
-}
-
-@test "集成测试 - 初始化后缓存正常工作" {
-	os_result=$(system.os)
-	arch_result=$(system.arch)
-	[ "$_SYSTEM_OS" = "$os_result" ]
-	[ "$_SYSTEM_ARCH" = "$arch_result" ]
 }
 
 @test "集成测试 - 混合命令检查和系统信息获取" {
@@ -191,24 +152,6 @@ line2" ]
 	result=$(system.arch)
 	# 正常情况下应该返回有效架构之一
 	[[ $result == "amd64" || $result == "arm64" || $result == "armhf" || $result == "i386" || -z $result ]]
-}
-
-# ============ 缓存隔离测试 ============
-
-@test "缓存不影响其他测试的隔离性" {
-	# 在当前测试中设置缓存
-	_SYSTEM_OS="custom_os"
-	_SYSTEM_ARCH="custom_arch"
-
-	# 验证缓存生效
-	[[ "$(system.os)" == "custom_os" ]]
-	[[ "$(system.arch)" == "custom_arch" ]]
-}
-
-@test "teardown 后缓存重建" {
-	# 这个测试验证 setup 正常工作
-	[[ -n $_SYSTEM_OS ]]
-	[[ -n $_SYSTEM_ARCH ]]
 }
 
 @test "system.gui_supported - 有 DISPLAY 时为真" {
