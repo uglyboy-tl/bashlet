@@ -36,52 +36,6 @@ setup() {
 	[ "$(array.len dyn_array)" = "3" ]
 }
 
-# array.type 测试
-@test "array.type - 索引数组类型判定" {
-	declare -a my_array=("foo" "bar" "baz")
-	[ "$(array.type my_array)" = "indexed" ]
-}
-
-@test "array.type - 关联数组类型判定" {
-	declare -A my_assoc=(["key1"]="value1" ["key2"]="value2")
-	[ "$(array.type my_assoc)" = "associative" ]
-}
-
-@test "array.type - 空索引数组类型判定" {
-	declare -a empty_array=()
-	[ "$(array.type empty_array)" = "indexed" ]
-}
-
-@test "array.type - 空关联数组类型判定" {
-	declare -A empty_assoc=()
-	[ "$(array.type empty_assoc)" = "associative" ]
-}
-
-@test "array.type - 普通字符串变量不是数组" {
-	local my_var="hello"
-	! array.type my_var
-}
-
-@test "array.type - 整数变量不是数组" {
-	local my_num=42
-	! array.type my_num
-}
-
-@test "array.type - 不存在的变量" {
-	! array.type nonexistent_var
-}
-
-@test "array.type - 只读变量不是数组" {
-	local -r readonly_var="test"
-	! array.type readonly_var
-}
-
-@test "array.type - 导出的环境变量不是数组" {
-	export TEST_ENV_VAR="value"
-	! array.type TEST_ENV_VAR
-	unset TEST_ENV_VAR
-}
-
 # array.contains 测试
 @test "array.contains - 包含存在的元素" {
 	declare -a my_array=("foo" "bar" "baz")
@@ -126,6 +80,18 @@ setup() {
 @test "array.contains - 部分匹配不应该成功" {
 	declare -a my_array=("foo" "bar" "baz")
 	! array.contains my_array "ba"
+}
+
+@test "array.contains - 同一查询的结果与数组长度无关（短数组不得子串命中）" {
+	declare -a short_array=("foo" "bar")
+	declare -a long_array=("foo" "bar" "baz" "qux")
+	! array.contains short_array "foo bar"
+	! array.contains long_array "foo bar"
+
+	declare -a joined=("foo bar" "baz")
+	declare -a joined_long=("foo bar" "baz" "qux" "quux")
+	array.contains joined "foo bar"
+	array.contains joined_long "foo bar"
 }
 
 @test "array.contains - 特殊字符元素" {
@@ -222,4 +188,33 @@ setup() {
 @test "array.get - 元素包含特殊字符" {
 	declare -a special_array=("foo*" "bar!")
 	[ "$(array.get special_array 0)" = "foo*" ]
+}
+
+# array.has_duplicates 测试
+@test "array.has_duplicates - 有重复返回 0" {
+	declare -a arr=("a" "b" "a")
+	array.has_duplicates arr
+}
+
+@test "array.has_duplicates - 无重复返回非 0" {
+	declare -a arr=("a" "b" "c")
+	! array.has_duplicates arr
+}
+
+@test "array.has_duplicates - 空数组不算重复" {
+	declare -a arr=()
+	! array.has_duplicates arr
+}
+
+@test "array.has_duplicates - 空串元素可比较（bash 不允许空关联下标）" {
+	declare -a dup=("x" "" "")
+	array.has_duplicates dup
+
+	declare -a uniq=("x" "" "y")
+	! array.has_duplicates uniq
+}
+
+@test "array.has_duplicates - 不与字面量 __EMPTY__ 撞键" {
+	declare -a arr=("" "__EMPTY__")
+	! array.has_duplicates arr
 }

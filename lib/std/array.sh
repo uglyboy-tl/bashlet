@@ -7,15 +7,11 @@ array.len() {
 
 array.contains() {
 	local -n ref="$1"
-	if ((${#ref[@]} <= 3)); then
-		[[ " ${ref[*]} " == *" $2 "* ]]
-	else
-		local -A lookup=()
-		for elem in "${ref[@]}"; do
-			lookup["$elem"]=1
-		done
-		[[ -v "lookup[$2]" ]]
-	fi
+	local elem
+	for elem in "${ref[@]}"; do
+		[[ $elem == "$2" ]] && return 0
+	done
+	return 1
 }
 
 array.append() {
@@ -30,25 +26,15 @@ array.get() {
 	(($2 >= 0 && $2 < len)) && echo "${ref[$2]}" || return 1
 }
 
-array.type() {
-	local -r arr="$1"
-	local decl
-	decl="$(declare -p "$arr" 2> /dev/null)" || return 1
-	case "$decl" in
-		"declare -A"*) echo "associative" ;;
-		"declare -a"*) echo "indexed" ;;
-		*) return 1 ;;
-	esac
-}
-
 array.has_duplicates() {
 	local -n ref="$1"
 	local -A seen=()
-	local elem key
+	local elem
 	for elem in "${ref[@]}"; do
-		key="${elem:-__EMPTY__}"
-		[[ -v "seen[$key]" ]] && return 0
-		seen["$key"]=1
+		# 键统一加前缀 k：bash 不允许空串作关联数组下标（s[""]=1 直接报「数组下标不正确」），
+		# 前缀既避开空下标，也不会与字面量 "__EMPTY__" 撞键
+		[[ -v "seen[k$elem]" ]] && return 0
+		seen["k$elem"]=1
 	done
 	return 1
 }
