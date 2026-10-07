@@ -22,7 +22,9 @@ teardown() {
 _payload_size() {
 	local mod="$1" src="$TMP/s.sh" out="$TMP/gen"
 	printf '#!/usr/bin/env bash\nimport %s\n' "$mod" > "$src"
-	"$PROJECT_ROOT/tools/build" -o "$out" "$src" > /dev/null 2>&1
+	# 构建失败必须报出来：否则 wc -c 读到空值/0，棘轮会把没测到的东西当成通过
+	"$PROJECT_ROOT/tools/build" -o "$out" "$src" > /dev/null 2>&1 || return 1
+	[[ -s $out ]] || return 1
 	wc -c < "$out"
 }
 
@@ -30,7 +32,11 @@ _payload_size() {
 	local failures=0 mod expected actual
 	while IFS=$'\t' read -r mod expected; do
 		[[ -z $mod || $mod == '#'* ]] && continue
-		actual=$(_payload_size "$mod")
+		actual=$(_payload_size "$mod") || {
+			echo "  $mod: 构建失败，无法测量载荷"
+			failures=1
+			continue
+		}
 		if ((actual > expected)); then
 			echo "  $mod: $actual > baseline $expected"
 			failures=1
@@ -48,11 +54,17 @@ _payload_size() {
 
 @test "payload: 刷新基线（需 PAYLOAD_UPDATE=1）" {
 	[[ ${PAYLOAD_UPDATE:-} == "1" ]] || skip "设置 PAYLOAD_UPDATE=1 以刷新基线"
-	local mod
-	: > "$BASELINE"
+	local mod size out="$TMP/baseline.tsv"
+	: > "$out"
 	for mod in core/args core/log core/usage core/config core/config.persist core/report \
 		std/array std/map std/string std/fs std/path std/system std/console std/console.layout std/console.epipe std/cache \
-		std/ansi std/markdown ext/requests ext/requests.sse ext/requests.cache ext/github ext/select ext/llm; do
-		printf '%s\t%s\n' "$mod" "$(_payload_size "$mod")" >> "$BASELINE"
+		std/ansi std/ansi.powerline std/markdown ext/requests ext/requests.sse ext/requests.cache ext/github ext/select ext/llm; do
+		# 先在临时文件里攒全，中途失败不会把基线截断
+		size=$(_payload_size "$mod") || {
+			echo "构建失败，基线未刷新: $mod" >&2
+			return 1
+		}
+		printf '%s\t%s\n' "$mod" "$size" >> "$out"
 	done
+	mv "$out" "$BASELINE"
 }
