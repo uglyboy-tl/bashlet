@@ -43,8 +43,8 @@ PAYLOAD_UPDATE=1 tools/test payload.bats  # 增长后刷新基线
 ```
 bashlet/
 ├── lib/core/      # 领域装配：args log usage config config.persist report
-├── lib/std/       # 标准库：import array map string fs path system console console.layout console.epipe ansi ansi.powerline markdown
-├── lib/ext/       # 可选：requests requests.sse select llm
+├── lib/std/       # 标准库：import array map string fs path system cache console console.layout console.epipe ansi ansi.powerline markdown
+├── lib/ext/       # 可选：requests requests.sse requests.cache github select llm
 ├── tools/         # install / build / test
 ├── test/          # Bats 测试（每个模块一个 <name>.bats）
 └── docs/adr/      # 架构决策记录

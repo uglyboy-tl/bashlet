@@ -18,8 +18,8 @@
 依赖只能向下，模块即载荷（`tools/build` 会把 import 到的模块内联进产物）：
 
 ```
-core/   领域装配：args · log · usage · report        （依赖 std/）
-std/    标准库：import · array · map · string · fs · path · system · console · console.layout · console.epipe · ansi · ansi.powerline · markdown
+core/   领域装配：args · log · usage · config · config.persist · report   （依赖 std/）
+std/    标准库：import · array · map · string · fs · path · system · cache · console · console.layout · console.epipe · ansi · ansi.powerline · markdown
 ext/    可选重能力：requests · requests.sse · requests.cache · github · select · llm
 ```
 
@@ -73,6 +73,7 @@ tools/build src/example.sh -o example
 | `fs` | 文件/目录、写入、查找替换、解压 |
 | `path` | XDG 目录与脚本名 |
 | `system` | 命令探测、OS/架构 |
+| `cache` | 通用 TTL 缓存：按命名空间 + 键存内容，只做存储与新鲜度判定，策略留给调用方 |
 | `console` | 终端原语：写、宽度、对齐、重复、对齐列表 |
 | `console.layout` | 终端组合渲染：section、缩进条目、footer |
 | `console.epipe` | 非交互输出安全：忽略 SIGPIPE、非 tty 时重定向到日志 |
