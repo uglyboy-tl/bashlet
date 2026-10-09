@@ -68,6 +68,12 @@ _build_fixture() {
 	local out="$OUT_DIR/entry_keep_env"
 	grep -qE '^\.env$' "$out"
 	grep -qE '^\.env\(\)|^\.env \(\)' "$out"
+
+	# .env 必须在模块内联之前执行（模块顶层读环境变量），不能被甩到文件尾部
+	local fn_line env_line
+	fn_line=$(grep -nE '^\.env\(\) \{' "$out" | head -1 | cut -d: -f1)
+	env_line=$(grep -n '^\.env$' "$out" | head -1 | cut -d: -f1)
+	((env_line > fn_line && env_line < 40))
 }
 
 @test "build 产物语法有效且可执行" {

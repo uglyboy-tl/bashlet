@@ -72,12 +72,11 @@ analyze_dependencies() {
 }
 
 # 剥离顶层指令行。只匹配行首无缩进的语句，避免误伤函数体里缩进的 source/import。
-# keep_env=false 时也剥掉 .env 调用：产物不应读取本地 .env，环境变量由真实环境提供。
-# keep_env=true（入口脚本含注释指令 `# build:keep-env`）时保留 .env。
+# .env 调用一律剥掉：keep_env=true 时由 build() 在模块内联之前统一插入一次（见那里的注释）。
 strip_directives() {
-	local file="$1" keep_env="${2:-false}" line
+	local file="$1" line
 	while IFS= read -r line || [[ -n $line ]]; do
-		[[ $keep_env != true ]] && [[ $line =~ ^\.env([[:space:]]|$) ]] && continue
+		[[ $line =~ ^\.env([[:space:]]|$) ]] && continue
 		[[ $line =~ ^(#!|set[[:space:]]|SCRIPT_NAME=|source[[:space:]]|import[[:space:]]) ]] && continue
 		printf '%s\n' "$line"
 	done < "$file"
@@ -145,13 +144,18 @@ build() {
 		echo
 		if [[ $keep_env == true ]]; then
 			declare -f .env
+			echo
+			# .env 必须插在模块内联之前：模块顶层会读环境（core/log 读 _LOG_LEVEL），
+			# 而入口剩余部分在模块之后才输出 —— 放那里就等于没生效。
+			echo '.env'
+			echo
 		fi
 	} > "$OUTPUT_FILE"
 
 	local file
 	for file in "${deps[@]}"; do
 		log.info "合并: ${file#"$PROJECT_ROOT"/}"
-		strip_directives "$file" "$keep_env" >> "$OUTPUT_FILE"
+		strip_directives "$file" >> "$OUTPUT_FILE"
 	done
 
 	minify_output "$OUTPUT_FILE"
