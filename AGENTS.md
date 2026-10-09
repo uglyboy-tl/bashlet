@@ -23,8 +23,9 @@ PAYLOAD_UPDATE=1 tools/test payload.bats  # 增长后刷新基线
 库层报错一律英文：bashlet 是给开发者/复用者的库，英文是公约数。`packages/*` 面向使用者的提示用中文，
 分工是「库说清缺什么，包说清怎么办」——包可以在自己的检查里给中文说明（`packages/dig/lib/common.sh` 的缺依赖提示即此例）。
 
-本条只管**报错文案**（`log.error`/`log.warn`/`>&2`）。`core/usage` 的模板（`Usage:`/`Options`）本就是英文，
-包的选项描述随包的语言走（现状中文），都不在此约束内。
+本条只管 `lib/` 下的**报错文案**（`log.error`/`log.warn`/`>&2`）。不在约束内：`core/usage` 的模板
+（`Usage:`/`Options`）本就是英文、包的选项描述随包语言走（现状中文）、`log.debug` 的调试信息、
+`system.command.result` 这类**返回值内容**（不是报错）、以及 `tools/` 工具链（面向本仓库维护者）。
 
 ## 复用优先（不要重造轮子）
 
@@ -42,8 +43,8 @@ PAYLOAD_UPDATE=1 tools/test payload.bats  # 增长后刷新基线
 | 终端写/宽度/对齐/重复 | `console.stdout`/`stderr`、`console.display_width`、`console.align`、`console.repeat`、`console.indent` |
 | 终端 section / 缩进条目 / footer | `console.layout.*` |
 | Markdown | `markdown.*` |
-| HTTP / 下载 / SSE | `ext/requests`（`requests.download` 在同一模块；`requests.sse` 在 `ext/requests.sse`） |
-| JSON / jq | `ext/json`（`json.bin` 给 jq 调用点、`json.get` 取一个值；import 时即探活 jq） |
+| HTTP / 下载 / SSE | `ext/requests`（`requests.download` 在同一模块；`requests.sse` 在 `ext/requests.sse`）。降级场景先用 `requests.available` 判断再 init |
+| JSON / jq | `ext/json`（`json.run` 跑 program、`json.get` 取值、`json.available` 探活、`json.require` 入口 fail-loud） |
 
 注意：性能优先——`${#arr[@]}`、`[[ -v map[k] ]]` 这类纯内建比调用 `array.len`/`map.contains`（走子 shell/echo）更快，允许内联。
 
@@ -66,7 +67,7 @@ tools/test                 # 运行当前目录 test/ 下的测试（基于 CWD�
 tools/test args.bats       # 运行单个测试文件（相对 test/，不要带 test/ 前缀）
 tools/test -x requests     # 排除 requests（访问网络，最慢；改非 requests 模块时用它）
 tools/test -j 4            # 并行运行
-tools/build src/x.sh -o x  # 内联依赖成单文件（shfmt 可选；默认剥离 .env，`# build:keep-env` 可保留）
+tools/build src/x.sh -o x  # 内联依赖成单文件（shfmt 可选；默认剥离 .env，`# build:keep-env` 可保留并把 .env 插到模块之前）
                            # import 解析顺序：入口目录的 lib/ 优先（脚本私有模块），再回退框架 lib/
                            # 所以脚本可以自带 lib/ 放私有模块，与框架模块同名不冲突
 tools/install              # 在宿主仓库建立 lib/ 与 test/ 软链，生成 src/example.sh

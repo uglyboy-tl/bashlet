@@ -85,7 +85,7 @@ tools/build src/example.sh -o example
 
 | 模块 | 功能 |
 |------|------|
-| `json` | jq 定位与取值（import 时即探活 jq；调用点用 `json.bin` / `json.get`） |
+| `json` | jq 入口（顶层只定位；跑程序 `json.run`、取值 `json.get`、探活 `json.available`、入口检查 `json.require`） |
 | `requests` | HTTP 请求封装（get/post/…、响应解析、download） |
 | `requests.sse` | SSE 流式请求（仅少数脚本需要，独立模块） |
 | `requests.cache` | HTTP 条件缓存（TTL + ETag/Last-Modified，远端未变时只刷新时间戳） |
@@ -118,10 +118,10 @@ tools/build src/example.sh -o example
 **std/ansi.powerline**：`enable.powerline` `disable.powerline` `Powerline.IsAvailable`（需 import 本模块才有 `POWERLINE_*`；`ansi.disable` 只重置颜色与样式）
 **std/markdown**：`escape` `header` `h1`…`h6` `list` `numbered` `todo` `table.header` `table.row` `code` `line` `link` `quote` `front_matter`
 
-**ext/json**：`bin` `get`
-> `ext/json` 在 import 时探活 jq（无状态模块不设 init）；`json.bin` 给 jq 调用点用，`json.get <json> [filter]` 取一个值。
-**ext/requests**：`init` `timeout` `base_url` `auth` `auth_bearer` `headers.append` `headers.clear` `get` `post` `put` `delete` `patch` `head` `options` `download` `json` `status_code` `exit_code` `headers` `text` `success` `raise_for_status`
-> `ext/requests` 必须先调 `requests.init`（定位 curl、设默认头）；不再有懒初始化。jq 的探活与定位归 `ext/json`。
+**ext/json**：`run` `get` `available` `require`
+> `ext/json` 顶层只定位 jq，**首次真正用到时**才探活：缺 jq 时 `json.run`/`json.get` 报错并退出（`--help`/`-v`/`doctor` 仍可用）。调用点跑 jq 程序用 `json.run`（直接 exec、无额外命令替换）；`json.get <json> [filter]` 取一个值；需接住再降级的用 `json.available`（0=可用）。`json.require` 是 fail-loud 出口——包应在自己的入口（主 shell）调一次，否则 `json.run` 在子 shell 里的失败会被静默；`requests.init` 已替 HTTP 路径探过。
+**ext/requests**：`init` `available` `curl.available` `timeout` `base_url` `auth` `auth_bearer` `headers.append` `headers.clear` `get` `post` `put` `delete` `patch` `head` `options` `download` `json` `status_code` `exit_code` `headers` `text` `success` `raise_for_status`
+> `ext/requests` 必须先调 `requests.init`（定位 curl、设默认头）；不再有懒初始化。缺 curl/jq 时 `exit 1`（硬依赖，调用方不必每处检查）。需要接住再降级的（doctor 的 probe、provider 表）先用 `requests.available`（curl && jq，0=齐）判断，通过了再 init。jq 的探活与定位归 `ext/json`。
 **ext/requests.sse**：`sse`
 **ext/requests.cache**：`path` `fresh` `fetch` `ensure`
 > `requests.cache.ensure URL [ttl秒]`：TTL 内零请求，过期发条件请求；回源失败但有旧缓存时降级使用。内容用 `requests.cache.path URL` 取。
@@ -148,7 +148,8 @@ tools/test -j 4            # 并行
 
 tools/build src/my-script.sh -o my-tool   # 内联依赖成单文件（需 shfmt 才压缩，缺失则跳过）
 # 注：默认剥离 .env（产物不读本地 .env，环境变量由真实环境提供）；
-#     入口脚本写 `# build:keep-env` 可让该产物保留 .env。
+#     入口脚本写 `# build:keep-env` 可让该产物保留 .env，
+#     保留时 build 把它插在模块内联**之前**（模块顶层读的环境变量才拿得到）。
 
 tools/test payload.bats                   # 载荷棘轮：各模块字节基线（只允许下降/持平）
 PAYLOAD_UPDATE=1 tools/test payload.bats  # 增长后刷新基线
