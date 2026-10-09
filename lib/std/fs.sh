@@ -27,7 +27,10 @@ fs.rmline() { [[ -n $4 ]] && sed -i "${4},/$2/{/$2/d}" "$1" 2> /dev/null || sed 
 # shellcheck disable=SC2012
 fs.cleanup() { ls -t "${1}"* 2> /dev/null | tail -n +$((${2:-3} + 1)) | xargs -r rm -f; } # 保留最新的 n 个文件 (默认 3 个)
 
-fs.mktemp() { mktemp "$@" 2> /dev/null || { echo "fs.mktemp: 创建临时文件失败" >&2; return 1; }; }
+fs.mktemp() { mktemp "$@" 2> /dev/null || {
+	echo "fs.mktemp: failed to create temp file" >&2
+	return 1
+}; }
 
 fs.file.extract() {
 	local path=$(realpath "$1") base=$(basename "$1")

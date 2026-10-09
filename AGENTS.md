@@ -18,6 +18,14 @@ tools/test payload.bats                   # 校验
 PAYLOAD_UPDATE=1 tools/test payload.bats  # 增长后刷新基线
 ```
 
+## 报错文案
+
+库层报错一律英文：bashlet 是给开发者/复用者的库，英文是公约数。`packages/*` 面向使用者的提示用中文，
+分工是「库说清缺什么，包说清怎么办」——包可以在自己的检查里给中文说明（`packages/dig/lib/common.sh` 的缺依赖提示即此例）。
+
+本条只管**报错文案**（`log.error`/`log.warn`/`>&2`）。`core/usage` 的模板（`Usage:`/`Options`）本就是英文，
+包的选项描述随包的语言走（现状中文），都不在此约束内。
+
 ## 复用优先（不要重造轮子）
 
 动手前先查 `README.md` 的「函数速查」。常见意图对应的既有函数：
@@ -35,6 +43,7 @@ PAYLOAD_UPDATE=1 tools/test payload.bats  # 增长后刷新基线
 | 终端 section / 缩进条目 / footer | `console.layout.*` |
 | Markdown | `markdown.*` |
 | HTTP / 下载 / SSE | `ext/requests`（`requests.download` 在同一模块；`requests.sse` 在 `ext/requests.sse`） |
+| JSON / jq | `ext/json`（`json.bin` 给 jq 调用点、`json.get` 取一个值；import 时即探活 jq） |
 
 注意：性能优先——`${#arr[@]}`、`[[ -v map[k] ]]` 这类纯内建比调用 `array.len`/`map.contains`（走子 shell/echo）更快，允许内联。
 
@@ -44,7 +53,7 @@ PAYLOAD_UPDATE=1 tools/test payload.bats  # 增长后刷新基线
 bashlet/
 ├── lib/core/      # 领域装配：args log usage config config.persist report
 ├── lib/std/       # 标准库：import array map string fs path system cache console console.layout console.epipe ansi ansi.powerline markdown
-├── lib/ext/       # 可选：requests requests.sse requests.cache github select llm
+├── lib/ext/       # 可选：json requests requests.sse requests.cache github select llm
 ├── tools/         # install / build / test
 ├── test/          # Bats 测试（每个模块一个 <name>.bats）
 └── docs/adr/      # 架构决策记录

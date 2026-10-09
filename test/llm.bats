@@ -34,7 +34,7 @@ setup() {
 	run llm.init
 	[ "$status" -eq 0 ]
 	[ -n "$_REQUESTS_CURL" ]
-	[ -n "$_REQUESTS_JQ" ]
+	[ -x "$(json.bin)" ]
 }
 
 # ========== SSE 回调解析（非网络） ==========

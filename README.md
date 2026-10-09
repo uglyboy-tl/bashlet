@@ -20,7 +20,7 @@
 ```
 core/   领域装配：args · log · usage · config · config.persist · report   （依赖 std/）
 std/    标准库：import · array · map · string · fs · path · system · cache · console · console.layout · console.epipe · ansi · ansi.powerline · markdown
-ext/    可选重能力：requests · requests.sse · requests.cache · github · select · llm
+ext/    可选重能力：json · requests · requests.sse · requests.cache · github · select · llm
 ```
 
 - **终端 vs 标记两条介质分开**：`std/console`（终端）与 `std/markdown`（标记）互不依赖。
@@ -85,6 +85,7 @@ tools/build src/example.sh -o example
 
 | 模块 | 功能 |
 |------|------|
+| `json` | jq 定位与取值（import 时即探活 jq；调用点用 `json.bin` / `json.get`） |
 | `requests` | HTTP 请求封装（get/post/…、响应解析、download） |
 | `requests.sse` | SSE 流式请求（仅少数脚本需要，独立模块） |
 | `requests.cache` | HTTP 条件缓存（TTL + ETag/Last-Modified，远端未变时只刷新时间戳） |
@@ -117,8 +118,10 @@ tools/build src/example.sh -o example
 **std/ansi.powerline**：`enable.powerline` `disable.powerline` `Powerline.IsAvailable`（需 import 本模块才有 `POWERLINE_*`；`ansi.disable` 只重置颜色与样式）
 **std/markdown**：`escape` `header` `h1`…`h6` `list` `numbered` `todo` `table.header` `table.row` `code` `line` `link` `quote` `front_matter`
 
+**ext/json**：`bin` `get`
+> `ext/json` 在 import 时探活 jq（无状态模块不设 init）；`json.bin` 给 jq 调用点用，`json.get <json> [filter]` 取一个值。
 **ext/requests**：`init` `timeout` `base_url` `auth` `auth_bearer` `headers.append` `headers.clear` `get` `post` `put` `delete` `patch` `head` `options` `download` `json` `status_code` `exit_code` `headers` `text` `success` `raise_for_status`
-> `ext/requests` 必须先调 `requests.init`（定位 curl/jq、设默认头）；不再有懒初始化。
+> `ext/requests` 必须先调 `requests.init`（定位 curl、设默认头）；不再有懒初始化。jq 的探活与定位归 `ext/json`。
 **ext/requests.sse**：`sse`
 **ext/requests.cache**：`path` `fresh` `fetch` `ensure`
 > `requests.cache.ensure URL [ttl秒]`：TTL 内零请求，过期发条件请求；回源失败但有旧缓存时降级使用。内容用 `requests.cache.path URL` 取。

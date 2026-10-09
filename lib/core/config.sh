@@ -19,12 +19,12 @@ config.path() {
 	[[ -f $_f ]] && echo "$_f" && return 0
 	_f="$(path.config_dir)/config.toml"
 	[[ -f $_f ]] && echo "$_f" && return 0
-	log.error "配置文件不存在: $_f"
+	log.error "config file not found: $_f"
 	return 1
 }
 
 config.register() {
-	array.contains _CONFIG_REGISTERED "$1" && log.warn "Key $1 重复定义" || _CONFIG_REGISTERED+=("$1")
+	array.contains _CONFIG_REGISTERED "$1" && log.warn "key $1 defined more than once" || _CONFIG_REGISTERED+=("$1")
 	_CONFIG_TYPES["$1"]="${3:-string}"
 	_CONFIG_DESCS["$1"]="${4:-}"
 	(($# >= 2)) && _CONFIG_VALUES["$1"]="$2" || true
@@ -75,7 +75,7 @@ config.get() { [[ -v "_CONFIG_VALUES[$1]" ]] && echo "${_CONFIG_VALUES[$1]}" || 
 
 config.set() {
 	! array.contains "_CONFIG_REGISTERED" "$1" && {
-		log.error "未注册的配置项: $1"
+		log.error "unregistered config key: $1"
 		return 1
 	}
 	_CONFIG_VALUES["$1"]="$2"
@@ -121,11 +121,11 @@ config.array.add() {
 
 config.array.set() {
 	! config.array.has "$1" && {
-		log.error "未注册的数组配置名: $1"
+		log.error "unregistered config array: $1"
 		return 1
 	}
 	_config.list.contains _CONFIG_ARRAY_REGISTERED "$1" "$3" || {
-		log.error "未注册的数组配置项: $1:$3"
+		log.error "unregistered config array key: $1:$3"
 		return 1
 	}
 	config.array.add "$1" "$2"

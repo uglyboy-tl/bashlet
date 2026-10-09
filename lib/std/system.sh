@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 system.command.exist() { command -v "$1" > /dev/null 2>&1; }
-system.command.required() { ! system.command.exist "$1" && log.error "This module required \`$1\` command." && exit 1 || return 0; }
+system.command.required() { ! system.command.exist "$1" && log.error "required command not found: $1" && exit 1 || return 0; }
 
 # 是否有图形会话（X11 或 Wayland）
 system.gui_supported() { [[ -n ${DISPLAY:-} || -n ${WAYLAND_DISPLAY:-} ]]; }

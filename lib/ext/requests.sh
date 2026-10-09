@@ -6,6 +6,7 @@ import std/system
 import std/array
 import std/fs
 import core/log
+import ext/json
 
 declare -g _REQUESTS_TIMEOUT=30
 declare -g _REQUESTS_USER_AGENT="bashlet-requests/1.0"
@@ -13,14 +14,14 @@ declare -g _REQUESTS_BASE_URL=""
 declare -gA _REQUESTS_HEADERS=()
 declare -gA _REQUESTS_AUTH=()
 declare -g _REQUESTS_CURL=""
-declare -g _REQUESTS_JQ=""
 
-# 用法约束：所有请求函数前必须先调 requests.init（它负责定位 curl/jq 并重置默认头/认证/base_url）。
+# curl 的探活留在 init：init 是请求路径的必经关口（重置默认头/认证/base_url），放这里不增加调用方负担，
+# 缺 curl 也在准备阶段就报出来。jq 归 ext/json，import 它时即探活（无状态模块没有 init 可挂）。
+# 用法约束：所有请求函数前必须先调 requests.init（它负责定位 curl 并重置默认头/认证/base_url）。
 requests.init() {
 	declare -ga _REQUESTS_CURL_EXTRA=("$@")
 
 	system.command.required "curl" && _REQUESTS_CURL="$(command -v curl)"
-	system.command.required "jq" && _REQUESTS_JQ="$(command -v jq)"
 
 	_REQUESTS_HEADERS=(
 		["Accept"]="*/*"
@@ -31,7 +32,7 @@ requests.init() {
 	_REQUESTS_AUTH=()
 	_REQUESTS_BASE_URL=""
 
-	log.debug "requests module initialized: curl=$_REQUESTS_CURL, jq=$_REQUESTS_JQ"
+	log.debug "requests module initialized: curl=$_REQUESTS_CURL, jq=$(json.bin)"
 	return 0
 }
 
@@ -90,7 +91,7 @@ requests.request.build() {
 # 中间响应独有的 ETag/Last-Modified 若被 requests.cache 当成最终资源的验证器存下来，
 # 下次条件请求就会拿错值（最坏是巧合命中，拿到错误的 304）。
 requests._headers_json() {
-	"$_REQUESTS_JQ" -Rs '[splits("\r?\n\r?\n")] | map(select(length > 0)) | last // "" | split("\n") | map(select(length > 0 and test(":"))) | map(split(": ") | {(.[0]): .[1] | rtrimstr("\r")}) | add // {}' "$1"
+	json.run -Rs '[splits("\r?\n\r?\n")] | map(select(length > 0)) | last // "" | split("\n") | map(select(length > 0 and test(":"))) | map(split(": ") | {(.[0]): .[1] | rtrimstr("\r")}) | add // {}' "$1"
 }
 
 requests.request() {
@@ -155,7 +156,7 @@ requests.download() {
 
 # URL 编码辅助函数
 requests._urlencode() {
-	"$_REQUESTS_JQ" -nr --arg str "$1" '$str | @uri'
+	json.run -nr --arg str "$1" '$str | @uri'
 }
 
 # 自动检测 Content-Type 辅助函数
@@ -227,24 +228,24 @@ requests.head() { requests.request "HEAD" "$1" "" ""; }
 requests.options() { requests.request "OPTIONS" "$1" "" ""; }
 
 # 提取状态码
-requests.status_code() { "$_REQUESTS_JQ" -r '.status_code' <<< "$1"; }
+requests.status_code() { json.run -r '.status_code' <<< "$1"; }
 
 # 提取 curl 退出码（非 0 表示传输层失败，即使 HTTP 是 2xx）
-requests.exit_code() { "$_REQUESTS_JQ" -r '.curl_exit' <<< "$1"; }
+requests.exit_code() { json.run -r '.curl_exit' <<< "$1"; }
 
 # 提取响应头 (可选指定字段名)
-requests.headers() { [[ -n ${2:-} ]] && "$_REQUESTS_JQ" -r --arg name "$2" '.headers[$name] // empty' <<< "$1" || "$_REQUESTS_JQ" -r '.headers' <<< "$1"; }
+requests.headers() { [[ -n ${2:-} ]] && json.run -r --arg name "$2" '.headers[$name] // empty' <<< "$1" || json.run -r '.headers' <<< "$1"; }
 
-requests.text() { "$_REQUESTS_JQ" -r '.body' <<< "$1" | string.base64.decode; }
+requests.text() { json.run -r '.body' <<< "$1" | string.base64.decode; }
 
 # 提取 JSON 响应 (可选 JSONPath)
 requests.json() {
 	local -r body_text="$(requests.text "$1")"
-	[[ -n ${2:-} ]] && "$_REQUESTS_JQ" -r "$2" <<< "$body_text" || echo "$body_text"
+	[[ -n ${2:-} ]] && json.get "$body_text" "$2" || echo "$body_text"
 }
 
 # 检查是否成功 (2xx)
-requests.success() { "$_REQUESTS_JQ" -r '.success' <<< "$1"; }
+requests.success() { json.run -r '.success' <<< "$1"; }
 
 # 检查 HTTP 错误，非零退出 (类似 requests.raise_for_status())
 requests.raise_for_status() { [[ "$(requests.success "${1:-}")" == "true" ]] || { log.error "HTTP error: status $(requests.status_code "${1:-}") curl_exit $(requests.exit_code "${1:-}")" && return 1; }; }
@@ -277,7 +278,7 @@ requests.base_url() { _REQUESTS_BASE_URL="$1"; }
 requests.headers.clear() { _REQUESTS_HEADERS=(); }
 
 # 设置 Basic Auth (用户名 密码)
-requests.auth() { _REQUESTS_AUTH["Authorization"]="Basic $("$_REQUESTS_JQ" -nr --arg c "$1:$2" '$c | @base64')"; }
+requests.auth() { _REQUESTS_AUTH["Authorization"]="Basic $(json.run -nr --arg c "$1:$2" '$c | @base64')"; }
 
 # 设置 Bearer Token
 requests.auth_bearer() { _REQUESTS_AUTH["Authorization"]="Bearer $1"; }

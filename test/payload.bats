@@ -58,7 +58,7 @@ _payload_size() {
 	: > "$out"
 	for mod in core/args core/log core/usage core/config core/config.persist core/report \
 		std/array std/map std/string std/fs std/path std/system std/console std/console.layout std/console.epipe std/cache \
-		std/ansi std/ansi.powerline std/markdown ext/requests ext/requests.sse ext/requests.cache ext/github ext/select ext/llm; do
+		std/ansi std/ansi.powerline std/markdown ext/json ext/requests ext/requests.sse ext/requests.cache ext/github ext/select ext/llm; do
 		# 先在临时文件里攒全，中途失败不会把基线截断
 		size=$(_payload_size "$mod") || {
 			echo "构建失败，基线未刷新: $mod" >&2

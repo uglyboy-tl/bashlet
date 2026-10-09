@@ -46,7 +46,7 @@ requests.reset() {
 	[[ -z $_REQUESTS_BASE_URL ]]
 }
 
-@test "requests.init() 检查 curl 和 jq" {
+@test "requests.init() 检查 curl" {
 	run requests.init
 	[ "$status" -eq 0 ]
 	# log.debug 输出可能到 stderr，检查命令是否成功执行即可

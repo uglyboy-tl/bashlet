@@ -119,26 +119,26 @@ args.verify() {
 		local opt="${option#--}" another
 		opt="${opt#-}"
 		array.contains _ARGS_OPTIONS "$opt" || {
-			log.error "未知选项: \"$option\""
+			log.error "unknown option: \"$option\""
 			return 1
 		}
 		array.contains _ARGS_OPTIONS_SWITCH "$opt" && {
 			another=${_ARGS_OPTIONS_SWITCH[$opt]}
-			args.has "-$another" "--$another" && log.error "重复选项" && return 1
+			args.has "-$another" "--$another" && log.error "duplicate option" && return 1
 			[[ $option =~ ^-[a-zA-Z]$ ]] && opt=$another
 		}
 		case ${_ARGS_OPTIONS_TYPE[$opt]} in
 			"NONE") unset "_ARGS_OPT_ARGS[$option]" 2> /dev/null || true ;;
-			*) [[ -z ${_ARGS_OPT_ARGS[$option]+x} ]] && log.error "选项 $option 需要参数" && return 1 ;;
+			*) [[ -z ${_ARGS_OPT_ARGS[$option]+x} ]] && log.error "option $option requires an argument" && return 1 ;;
 		esac
 	done
-	array.has_duplicates _ARGS_OPTS && log.error "重复选项" && return 1
+	array.has_duplicates _ARGS_OPTS && log.error "duplicate option" && return 1
 	local -a _ARGS_TEMP_ARGS=("${_ARGS_ARGS[@]}")
 	for value in "${_ARGS_OPT_ARGS[@]}"; do
 		unset "_ARGS_TEMP_ARGS[$value]"
 	done
 	declare -ga _ARGS_FINAL_ARGS=("${_ARGS_TEMP_ARGS[@]}")
-	[[ $(map.len _ARGS_HELP_ARGS) -eq 0 ]] && [[ $(array.len _ARGS_FINAL_ARGS) -gt 0 ]] && log.error "位置参数错误" && return 1 || true
+	[[ $(map.len _ARGS_HELP_ARGS) -eq 0 ]] && [[ $(array.len _ARGS_FINAL_ARGS) -gt 0 ]] && log.error "invalid positional arguments" && return 1 || true
 }
 
 args.has() {

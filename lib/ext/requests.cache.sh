@@ -66,7 +66,7 @@ requests.cache.ensure() {
 	cache=$(requests.cache.path "$url") || return 1
 	requests.cache.fresh "$cache" "${2:-0}" && return 0
 	requests.cache.fetch "$url" && return 0
-	[[ -f $cache ]] && log.warn "requests.cache: 回源失败，降级使用过期缓存 ($url)" && return 0
-	log.error "requests.cache: 无可用缓存且回源失败 ($url)"
+	[[ -f $cache ]] && log.warn "requests.cache: origin fetch failed, falling back to stale cache ($url)" && return 0
+	log.error "requests.cache: no usable cache and origin fetch failed ($url)"
 	return 1
 }

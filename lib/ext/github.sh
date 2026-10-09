@@ -11,7 +11,7 @@ import ext/requests
 # 网络与解析分离：release.latest/first/pick、contents.list 触网；
 # version、asset.url 是纯解析函数，因此后者可以离线测试。
 #
-# 契约：与 ext/requests 一致，调用前先 requests.init（解析函数依赖它定位 jq）。
+# 契约：与 ext/requests 一致，触网函数前先 requests.init；纯解析函数只用 jq（import 时已探活）。
 # GITHUB_TOKEN 存在时，只有 github.api 会附加认证头；raw / 下载请求不带 token。
 
 declare -g _GITHUB_API="https://api.github.com"
@@ -46,7 +46,7 @@ github.release.first() { github._json "$(github.api "repos/$1/releases")" ".[0]"
 # 从 release JSON 提取版本号：优先取 tag 里的 x.y.z，取不到则原样返回 tag
 github.release.version() {
 	local tag
-	tag=$("$_REQUESTS_JQ" -r '.tag_name // .name // ""' <<< "$1")
+	tag=$(json.run -r '.tag_name // .name // ""' <<< "$1")
 	[[ $tag =~ ([0-9]+\.[0-9]+(\.[0-9]+)?) ]] && echo "${BASH_REMATCH[1]}" || echo "$tag"
 }
 
@@ -99,7 +99,7 @@ github.asset.pattern() {
 # 从 release JSON 按资产名正则挑下载 URL（忽略大小写），无匹配返回 1
 github.asset.url() {
 	local url
-	url=$("$_REQUESTS_JQ" -r --arg pat "$2" 'first(.assets[]? | select(.name | test($pat; "i")) | .browser_download_url) // ""' <<< "$1")
+	url=$(json.run -r --arg pat "$2" 'first(.assets[]? | select(.name | test($pat; "i")) | .browser_download_url) // ""' <<< "$1")
 	[[ -n $url && $url != "null" ]] && echo "$url"
 }
 
