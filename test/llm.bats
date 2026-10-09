@@ -30,11 +30,10 @@ setup() {
 	[ "$_LLM_MODEL" = "gpt-x" ]
 }
 
-@test "llm.init - 初始化 requests（curl/jq 就绪）" {
+@test "llm.init - 初始化 requests（curl 就绪）" {
 	run llm.init
 	[ "$status" -eq 0 ]
 	[ -n "$_REQUESTS_CURL" ]
-	[ -x "$(json.bin)" ]
 }
 
 # ========== SSE 回调解析（非网络） ==========

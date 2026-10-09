@@ -15,13 +15,29 @@ declare -gA _REQUESTS_HEADERS=()
 declare -gA _REQUESTS_AUTH=()
 declare -g _REQUESTS_CURL=""
 
-# curl 的探活留在 init：init 是请求路径的必经关口（重置默认头/认证/base_url），放这里不增加调用方负担，
-# 缺 curl 也在准备阶段就报出来。jq 归 ext/json，import 它时即探活（无状态模块没有 init 可挂）。
+# curl 的探活留在 init：init 是请求路径的必经关口（重置默认头/认证/base_url），放这里不增加调用方负担。
+# 缺 curl 时 **exit 1**：硬依赖缺失，要求每个调用方都记得查返回值不现实，漏检还会静默产出垃圾数据
+# （curl 路径为空 → 造出 "curl_exit":127 的非法 JSON）。需要「接住再降级」的少数调用方
+# （dig 的 doctor/probe、imagine 的 provider 表、binup 的中文提示）走 requests.curl.available 显式探活。
+# jq 归 ext/json，import 它时即探活（无状态模块没有 init 可挂）。
 # 用法约束：所有请求函数前必须先调 requests.init（它负责定位 curl 并重置默认头/认证/base_url）。
+requests.curl.available() { system.command.exist curl || return 3; }
+
+# 聚合判断：curl 与 jq 都就绪（0=齐、非 0=缺）。
+# 降级场景先用它，判断通过再 requests.init —— 那时 init 不可能失败，它的 exit 也就伤不到人。
+requests.available() { requests.curl.available && json.available; }
+
 requests.init() {
 	declare -ga _REQUESTS_CURL_EXTRA=("$@")
 
-	system.command.required "curl" && _REQUESTS_CURL="$(command -v curl)"
+	# init 是请求路径的必经关口，在这里替调用方把 jq 也判了：json.run 的 fail-fast 在
+	# $(...) / 管道里只杀子 shell，缺 jq 会被 `2> /dev/null || true` 静默成误导性错误。
+	json.require
+	requests.curl.available || {
+		log.error "required command not found: curl"
+		exit 1
+	}
+	_REQUESTS_CURL="$(command -v curl)"
 
 	_REQUESTS_HEADERS=(
 		["Accept"]="*/*"
@@ -32,7 +48,7 @@ requests.init() {
 	_REQUESTS_AUTH=()
 	_REQUESTS_BASE_URL=""
 
-	log.debug "requests module initialized: curl=$_REQUESTS_CURL, jq=$(json.bin)"
+	log.debug "requests module initialized: curl=$_REQUESTS_CURL"
 	return 0
 }
 

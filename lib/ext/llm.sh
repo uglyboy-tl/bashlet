@@ -9,6 +9,7 @@ import core/log
 : "${_LLM_MODEL:="deepseek-chat"}"
 
 llm.init() {
+	requests.available || return 3
 	requests.init
 	requests.timeout 60
 	log.debug "llm module initialized: model=$_LLM_MODEL"

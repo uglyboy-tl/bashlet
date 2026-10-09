@@ -17,10 +17,10 @@ std/cache	1876
 std/ansi	1805
 std/ansi.powerline	3269
 std/markdown	1358
-ext/json	6363
-ext/requests	14247
-ext/requests.sse	14639
-ext/requests.cache	17529
-ext/github	16860
+ext/json	5574
+ext/requests	14533
+ext/requests.sse	14925
+ext/requests.cache	17815
+ext/github	17146
 ext/select	6357
-ext/llm	15869
+ext/llm	16184

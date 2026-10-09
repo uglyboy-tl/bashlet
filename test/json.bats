@@ -9,13 +9,23 @@ setup() {
 
 # ============ 定位（import 时完成） ============
 
-@test "json.bin() 返回可执行的 jq 路径" {
-	run json.bin
+@test "json.available() 有 jq 时返回 0" {
+	run json.available
 	[ "$status" -eq 0 ]
-	[ -x "$output" ]
 }
 
 # ============ 跑程序 ============
+
+@test "json.require() 缺 jq 时 exit 1（供包在自己的入口调一次）" {
+	local tmp="$BATS_TEST_TMPDIR"
+	printf '#!/usr/bin/env bash\nimport ext/json\necho "入口 OK"\njson.require\necho "不该到这"\n' > "$tmp/s.sh"
+	"$PROJECT_ROOT/tools/build" -o "$tmp/gen" "$tmp/s.sh" > /dev/null 2>&1 || skip "构建失败"
+	mkdir -p "$tmp/nopath"
+	run env PATH="$tmp/nopath" "$BASH" "$tmp/gen"
+	[ "$status" -eq 1 ]
+	[[ "$output" == *"入口 OK"* ]]
+	[[ "$output" != *"不该到这"* ]]
+}
 
 @test "json.run() 转发 jq 参数" {
 	run json.run -nr '1'
@@ -27,6 +37,23 @@ setup() {
 	run json.run -c -n --arg x hi '{x: $x}'
 	[ "$status" -eq 0 ]
 	[ "$output" = '{"x":"hi"}' ]
+}
+
+@test "json.run() 透传 jq 的退出码" {
+	run json.run -n 'error("boom")'
+	[ "$status" -ne 0 ]
+}
+
+@test "json: 缺 jq 时 import 不失败，json.run 才报错退出" {
+	local tmp="$BATS_TEST_TMPDIR"
+	printf '#!/usr/bin/env bash\nimport ext/json\necho "加载 OK"\njson.run -nr "1"\necho "不该到这"\n' > "$tmp/s.sh"
+	"$PROJECT_ROOT/tools/build" -o "$tmp/gen" "$tmp/s.sh" > /dev/null 2>&1 || skip "构建失败"
+	mkdir -p "$tmp/nopath"
+	run env PATH="$tmp/nopath" "$BASH" "$tmp/gen"
+	[ "$status" -eq 1 ]
+	[[ "$output" == *"加载 OK"* ]]
+	[[ "$output" == *"required command not found: jq"* ]]
+	[[ "$output" != *"不该到这"* ]]
 }
 
 # ============ 取值 ============

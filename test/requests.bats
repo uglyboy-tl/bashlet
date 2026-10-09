@@ -52,6 +52,28 @@ requests.reset() {
 	# log.debug 输出可能到 stderr，检查命令是否成功执行即可
 }
 
+@test "requests.available() 缺 curl 时返回非 0" {
+	system.command.exist() { [[ $1 != curl ]]; }
+	local rc=0
+	requests.available || rc=$?
+	[ "$rc" -ne 0 ]
+}
+
+@test "requests.curl.available() 缺 curl 时返回 3、不 exit" {
+	system.command.exist() { [[ $1 != curl ]]; }
+	local rc=0
+	requests.curl.available || rc=$?
+	[ "$rc" -eq 3 ]
+}
+
+@test "requests.init() 缺 curl 时 exit 1（调用方不必检查）" {
+	system.command.exist() { [[ $1 != curl ]]; }
+	local rc=0
+	# 子 shell 里 exit 只退出子 shell，父 shell 拿得到退出码
+	(requests.init) || rc=$?
+	[ "$rc" -eq 1 ]
+}
+
 @test "requests.init() 接受额外 curl 参数" {
 	# 使用 --connect-timeout 作为额外参数
 	run requests.init --connect-timeout 30
