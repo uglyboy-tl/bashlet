@@ -83,24 +83,33 @@ setup() {
 
 # ============ 镜像前缀改写 ============
 
-@test "github.url.proxied - 空前缀原样返回" {
-	run github.url.proxied "https://github.com/a/b/x" ""
-	assert_output "https://github.com/a/b/x"
+@test "github.url.insteadof - 按 git 配置替换前缀" {
+	git() { printf 'url.https://gh-proxy.com/https://github.com/.insteadof https://github.com/\n'; }
+
+	run github.url.insteadof "https://github.com/a/b/releases/download/v1/x.tar.gz"
+	assert_output "https://gh-proxy.com/https://github.com/a/b/releases/download/v1/x.tar.gz"
 }
 
-@test "github.url.proxied - github.com 直链改写" {
-	run github.url.proxied "https://github.com/a/b/releases/download/v1/x.tar.gz" "https://p/gh/"
-	assert_output "https://p/gh/a/b/releases/download/v1/x.tar.gz"
+@test "github.url.insteadof - 最长前缀优先" {
+	git() { printf 'url.https://short/.insteadof https://\nurl.https://long/https://github.com/.insteadof https://github.com/\n'; }
+
+	run github.url.insteadof "https://github.com/a/b"
+	assert_output "https://long/https://github.com/a/b"
 }
 
-@test "github.url.proxied - raw 域名转成 /raw/ 形式" {
-	run github.url.proxied "https://raw.githubusercontent.com/a/b/main/dir/x.toml" "https://p/gh/"
-	assert_output "https://p/gh/a/b/raw/main/dir/x.toml"
+@test "github.url.insteadof - 未命中或 git/config 缺失时原样返回" {
+	git() { return 1; }
+	run github.url.insteadof "https://github.com/a/b"
+	assert_output "https://github.com/a/b"
 }
 
-@test "github.url.proxied - 非 GitHub 域名原样返回" {
-	run github.url.proxied "https://example.com/x" "https://p/gh/"
-	assert_output "https://example.com/x"
+@test "github.url.insteadof - 读真实 git 配置" {
+	export HOME="$BATS_TEST_TMPDIR/home" GIT_CONFIG_NOSYSTEM=1
+	mkdir -p "$HOME"
+	printf '[url "https://gh-proxy.com/https://github.com/"]\n\tinsteadOf = https://github.com/\n' > "$HOME/.gitconfig"
+
+	run github.url.insteadof "https://github.com/a/b/x"
+	assert_output "https://gh-proxy.com/https://github.com/a/b/x"
 }
 
 # ============ 网络层（桩） ============

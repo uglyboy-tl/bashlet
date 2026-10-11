@@ -13,6 +13,7 @@ import ext/requests
 #
 # 契约：与 ext/requests 一致，触网函数前先 requests.init；纯解析函数只用 jq（import 时已探活）。
 # GITHUB_TOKEN 存在时，只有 github.api 会附加认证头；raw / 下载请求不带 token。
+# 镜像改写走 github.url.insteadof：按宿主机 git 配置的 url.<base>.insteadOf 替换前缀。
 
 declare -g _GITHUB_API="https://api.github.com"
 declare -g _GITHUB_WEB="https://github.com"
@@ -115,27 +116,29 @@ github.contents.list() {
 # raw 文件 URL；ref 省略时用 HEAD（GitHub 的默认分支别名）
 github.raw.url() { printf '%s/%s/raw/%s/%s' "$_GITHUB_WEB" "$1" "${3:-HEAD}" "$2"; }
 
-# 把 GitHub URL 改写为镜像前缀形式（大陆访问 GitHub 的常用做法）
-# 支持两种形态，其余域名或空前缀一律原样返回：
-#   https://github.com/OWNER/REPO/...                     → PREFIX/OWNER/REPO/...
-#   https://raw.githubusercontent.com/OWNER/REPO/REF/...  → PREFIX/OWNER/REPO/raw/REF/...
-github.url.proxied() {
-	local url="$1" prefix="${2:-}" owner repo rest
-	[[ -n $prefix ]] || {
+# 按宿主机 git 配置的 url.<base>.insteadOf 改写 URL（把命中的前缀替换成 base）。
+# 读的是 `git config` 而不是配置文件，include / includeIf / 多文件都自动生效；
+# 无 git、无配置或不命中则原样返回（本模块绝不自作主张加上镜像前缀）。
+# 替换范围由用户配置决定，规则同 git：最长前缀优先。
+github.url.insteadof() {
+	local url="$1"
+	system.command.exist git || {
 		printf '%s' "$url"
 		return 0
 	}
 
-	case "$url" in
-		https://github.com/*) printf '%s' "$prefix${url#https://github.com/}" ;;
-		https://raw.githubusercontent.com/*)
-			rest="${url#https://raw.githubusercontent.com/}"
-			owner="${rest%%/*}"
-			rest="${rest#*/}"
-			repo="${rest%%/*}"
-			rest="${rest#*/}"
-			printf '%s%s/%s/raw/%s' "$prefix" "$owner" "$repo" "$rest"
-			;;
-		*) printf '%s' "$url" ;;
-	esac
+	local key value base best_prefix="" best_base=""
+	while read -r key value; do
+		[[ $key == url.*.insteadof && -n $value && $url == "$value"* ]] || continue
+		[[ ${#value} -gt ${#best_prefix} ]] || continue
+		base="${key#url.}"
+		best_prefix="$value"
+		best_base="${base%.insteadof}"
+	done < <(git config --get-regexp '^url\..*\.insteadof$' 2> /dev/null)
+
+	if [[ -n $best_prefix ]]; then
+		printf '%s' "${url/"$best_prefix"/"$best_base"}"
+	else
+		printf '%s' "$url"
+	fi
 }

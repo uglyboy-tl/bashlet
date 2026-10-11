@@ -21,6 +21,6 @@ ext/json	5574
 ext/requests	14533
 ext/requests.sse	14925
 ext/requests.cache	17815
-ext/github	17146
+ext/github	17232
 ext/select	6357
 ext/llm	16184
