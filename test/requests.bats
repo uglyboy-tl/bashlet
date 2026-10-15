@@ -579,6 +579,46 @@ requests.reset() {
 	rm -f "$temp_file" "$temp_output"
 }
 
+@test "requests.download() 走 .part 落盘且不留下中间文件" {
+	requests.init
+
+	local temp_file=$(mktemp)
+	local temp_output="${temp_file}.downloaded"
+	echo "part test" > "$temp_file"
+
+	run requests.download "file://$temp_file" "$temp_output" "false"
+
+	[ "$status" -eq 0 ]
+	[ -f "$temp_output" ]
+	[ ! -e "${temp_output}.part" ]
+	[ ! -e "${temp_output}.headers" ]
+
+	rm -f "$temp_file" "$temp_output"
+}
+
+@test "requests._download_expected_size 从响应头取完整大小" {
+	# 回归点：以前直接对 target 用 -C -，重试/并发写会产出「完整文件 + 追加垃圾」而 curl 仍退出 0；
+	# 现在靠这个函数拿到响应声明的总大小来校验
+	local hdr=$(mktemp)
+
+	# 206：续传时只有 Content-Range 带总数
+	printf 'HTTP/2 206 \r\ncontent-range: bytes 479232-5726504/5726505\r\n\r\n' > "$hdr"
+	run requests._download_expected_size "$hdr"
+	[ "$output" = "5726505" ]
+
+	# 200：用 Content-Length；重定向链里最后一组才有效
+	printf 'HTTP/2 302 \r\ncontent-length: 0\r\n\r\nHTTP/2 200 \r\ncontent-length: 12345\r\n\r\n' > "$hdr"
+	run requests._download_expected_size "$hdr"
+	[ "$output" = "12345" ]
+
+	# 非 HTTP（file://）没有响应头 -> 输出空，调用方跳过校验而不是报错
+	: > "$hdr"
+	run requests._download_expected_size "$hdr"
+	[ -z "$output" ]
+
+	rm -f "$hdr"
+}
+
 @test "requests.download() 支持断点续传参数" {
 	requests.init
 

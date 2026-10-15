@@ -153,21 +153,70 @@ requests.request() {
 	echo "{\"status_code\":$status_code,\"curl_exit\":$curl_exit,\"headers\":$headers_json,\"body\":\"$body_base64\",\"success\":$success}"
 }
 
+# 从 curl -D 写出的响应头里取「完整资源大小」：206 用 Content-Range 的 /total，200 用 Content-Length。
+# 取最后一组：-L 重定向链里最后一跳才是真正的资源。非 HTTP（如 file://）没有响应头，
+# 输出空表示无从校验（调用方应跳过校验而不是报错）。
+requests._download_expected_size() {
+	local headers="$1" total
+	total=$(grep -i '^content-range:' "$headers" 2> /dev/null | tail -1 | sed -E 's#.*/([0-9]+).*#\1#')
+	if [[ ! $total =~ ^[0-9]+$ ]]; then
+		total=$(grep -i '^content-length:' "$headers" 2> /dev/null | tail -1 | sed -E 's#.*: *([0-9]+).*#\1#')
+	fi
+	[[ $total =~ ^[0-9]+$ ]] && echo "$total"
+	return 0
+}
+
+# 下载 URL 到 target，返回 0 表示 target 已就绪。
+# 先写 <target>.part、比对响应声明的总大小后再原子替换 target。
+# 不能直接对 target 用 `-C -`：断点续传遇上重试或并发写会产出「完整文件 + 追加垃圾」的拼接体，
+# 而 curl 仍以 0 退出，直到解压阶段才炸（且坏归档已落盘）。
 requests.download() {
-	local curl_cmd=("$_REQUESTS_CURL" "-L" "--globoff" "--fail")
+	local url="$1" target="$2" show_progress="${3:-true}" allow_resume="${4:-true}"
+	local part="${target}.part" headers="${target}.headers"
+	local curl_cmd=("$_REQUESTS_CURL" "-L" "--globoff" "--fail" "-D" "$headers" "-o" "$part")
+
 	# 默认不附加认证头，与 requests.get()/post() 行为不同，
 	# 如需认证请使用 URL 参数或直接调用 requests.request()
 	requests.curl.configure curl_cmd "" false
-	curl_cmd+=("-o" "$2")
 
 	# 是否显示进度
-	[[ ${3:-true} == "true" ]] && curl_cmd+=("--progress-bar")
+	[[ $show_progress == "true" ]] && curl_cmd+=("--progress-bar")
 
-	# 是否启用断点续传
-	[[ ${4:-true} == "true" ]] && curl_cmd+=("-C" "-")
+	# 是否启用断点续传；只作用于 .part，不会污染已就绪的 target
+	[[ $allow_resume == "true" ]] && curl_cmd+=("-C" "-")
 
-	# 执行下载
-	"${curl_cmd[@]}" "$1"
+	rm -f "$headers"
+	"${curl_cmd[@]}" "$url" || {
+		# 失败时响应头也已经写下了（416 会带 Content-Range: bytes */total），
+		# 借此判断 .part 是不是已超出资源大小——这种残片续传永远 416，只能丢掉。
+		local failed_expected failed_actual
+		failed_expected=$(requests._download_expected_size "$headers")
+		rm -f "$headers"
+		if [[ -n $failed_expected ]]; then
+			failed_actual=$(stat -c%s "$part" 2> /dev/null) || failed_actual=0
+			if ((failed_actual > failed_expected)); then
+				rm -f "$part"
+				log.warn "残留分片($failed_actual) 大于资源($failed_expected)，已丢弃：$target"
+			fi
+		fi
+		return 1
+	}
+
+	local expected actual
+	expected=$(requests._download_expected_size "$headers")
+	rm -f "$headers"
+	actual=$(stat -c%s "$part" 2> /dev/null) || return 1
+
+	if [[ -n $expected && $actual != "$expected" ]]; then
+		# 比预期小 = 传输中断，保留 .part 供下次续传；比预期大 = 被追加污染，只能丢弃
+		if ((actual > expected)); then
+			rm -f "$part"
+		fi
+		log.error "下载大小不符：实际 $actual，预期 $expected（$url）"
+		return 1
+	fi
+
+	mv -f "$part" "$target"
 }
 
 # URL 编码辅助函数
