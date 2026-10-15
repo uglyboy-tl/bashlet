@@ -45,6 +45,28 @@ setup() {
 	assert_failure
 }
 
+@test "github.asset.url - 多命中时按名称排序取第一个，不依赖资产顺序" {
+	# 回归点：资产顺序由上传决定、GitHub 不承诺；候选用反字典序排列，仍应拿到 gnu
+	run github.asset.url '{
+  "assets": [
+    {"name": "app-linux-musl.tar.gz", "browser_download_url": "https://example.com/musl"},
+    {"name": "app-linux-gnu.tar.gz", "browser_download_url": "https://example.com/gnu"}
+  ]
+}' 'app-linux'
+	assert_output "https://example.com/gnu"
+}
+
+@test "github.asset.url - 纯正版胜过 -variant 后缀变体" {
+	# 回归点：ASCII 里 `-`(0x2D) < `.`(0x2E)，纯按名称字典序会挑到 -static；按「长度 → 名称」则纯正版胜
+	run github.asset.url '{
+  "assets": [
+    {"name": "app-linux-gnu-static.tar.gz", "browser_download_url": "https://example.com/static"},
+    {"name": "app-linux-gnu.tar.gz", "browser_download_url": "https://example.com/plain"}
+  ]
+}' 'app-linux'
+	assert_output "https://example.com/plain"
+}
+
 # ============ 资产名匹配（占位符与架构别名） ============
 
 @test "github.asset.arch_regex - 已知架构展开为多种写法" {
@@ -69,6 +91,29 @@ setup() {
 @test "github.asset.pattern - 带扩展名时要求以该扩展名结尾" {
 	run github.asset.pattern 'app-{os}' tar.gz
 	[[ $output == *"[.][^.]*tar.gz$" ]]
+}
+
+@test "github.asset.libc_regex - 展开为可选的风味集" {
+	run github.asset.libc_regex
+	assert_output '(-gnueabihf|-musleabihf|-musleabi|-softfloat|-glibc|-gnu|-musl)?'
+}
+
+@test "github.asset.pattern - {libc} 展开且 ? 量词不被当成通配符" {
+	run github.asset.pattern 'app-{os}{libc}' tar.gz
+	assert_success
+	# 回归点：{libc} 必须在 ? → . 之后展开，否则原本可选的 (…)? 会变成必匹配一个字符的 (…).
+	assert_output "app-$(system.os)$(github.asset.libc_regex)[.][^.]*tar.gz$"
+}
+
+@test "github.asset.pattern - {libc} 同时匹配带风味与不带风味的资产名" {
+	run github.asset.pattern 'app-{os}{libc}' tar.gz
+	local p="$output"
+	echo "app-linux-gnu.tar.gz" | grep -qiE -- "$p"
+	echo "app-linux-gnueabihf.tar.gz" | grep -qiE -- "$p"
+	echo "app-linux-musleabihf.tar.gz" | grep -qiE -- "$p"
+	echo "app-linux-musl.tar.gz" | grep -qiE -- "$p"
+	echo "app-linux.tar.gz" | grep -qiE -- "$p"
+	! echo "app-darwin-gnu.tar.gz" | grep -qiE -- "$p"
 }
 
 @test "github.raw.url - 默认用 HEAD" {

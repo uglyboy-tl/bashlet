@@ -126,7 +126,7 @@ tools/build src/example.sh -o example
 **ext/requests.cache**：`path` `fresh` `fetch` `ensure`
 > `requests.cache.ensure URL [ttl秒]`：TTL 内零请求，过期发条件请求；回源失败但有旧缓存时降级使用。内容用 `requests.cache.path URL` 取。
 **ext/github**：`init` `api` `release.latest` `release.first` `release.version` `release.pick` `asset.arch_regex` `asset.pattern` `asset.url` `contents.list` `raw.url` `url.insteadof`
-> `github.init` 先调 `requests.init`，参数透传；有 `GITHUB_TOKEN` 时自动加认证头。`asset.pattern` 展开 `{os}`/`{arch}` 占位符供 `asset.url`/`release.pick` 使用。
+> `github.init` 先调 `requests.init`，参数透传；有 `GITHUB_TOKEN` 时自动加认证头。`asset.pattern` 展开 `{os}`/`{arch}`/`{libc}` 占位符供 `asset.url`/`release.pick` 使用；`{libc}` 自带前导 `-` 且整体可选（如 `uv-{arch}-unknown-{os}{libc}` 同时容忍 `-linux-gnu` / `-linux-musl` / `-linux`）。
 **ext/select**：`one` `many` `ui` `gui.supported`
 **ext/llm**：`init` `api_key` `base_url` `model` `chat` `chat.stream`
 

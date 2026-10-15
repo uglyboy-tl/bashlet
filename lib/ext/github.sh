@@ -72,7 +72,7 @@ github.release.pick() {
 }
 
 # ===== 资产名匹配 =====
-# {os}/{arch} 占位符与架构别名表是「挑 release 资产」的知识，与 release 查询同居一处
+# {os}/{arch}/{libc} 占位符与架构/ABI 别名表是「挑 release 资产」的知识，与 release 查询同居一处
 # （模块边界由载荷约束决定，见 bashlet docs/adr/0001-payload-constraint-module-boundaries.md）
 
 # 归一架构名 → 发布资产常见写法的正则；未知架构原样返回
@@ -87,20 +87,36 @@ github.asset.arch_regex() {
 	esac
 }
 
-# 资产文件名模式 → 正则：展开 {os}/{arch} 占位符，通配符 * → .*、? → .
+# libc/ABI 风味 → 正则；自带前导 - 且整体可选，所以模式里写 `{os}{libc}` 即可。
+# 可选是必须的：部分项目（如 sing-box）同时发带风味和不带风味的包。
+# 长拼写写在前只是防御性约定：Oniguruma 会回溯，实测两种顺序都能匹配 `-gnueabihf`；
+# 只有换成不回溯的引擎时，`-gnu` 在前才会把 `-gnueabihf` 截断。
+github.asset.libc_regex() {
+	echo "(-gnueabihf|-musleabihf|-musleabi|-softfloat|-glibc|-gnu|-musl)?"
+}
+
+# 资产文件名模式 → 正则：展开 {os}/{arch}/{libc} 占位符，通配符 * → .*、? → .
 # ext 非空时要求文件名以 .<ext> 结尾（如 ext=tar.gz 匹配 .tar.gz）
 github.asset.pattern() {
 	local pattern="${1//\{os\}/$(system.os)}"
 	pattern="${pattern//\{arch\}/$(github.asset.arch_regex "$(system.arch)")}"
 	pattern="${pattern//\*/.*}"
 	pattern="${pattern//\?/.}"
+	# {libc} 必须晚于上面的 ? → . 展开：它展开出的 (…)? 量词会被前一步吃成 (…).
+	pattern="${pattern//\{libc\}/$(github.asset.libc_regex)}"
 	[[ -n ${2:-} ]] && echo "${pattern}[.][^.]*${2}$" || echo "${pattern}$"
 }
 
-# 从 release JSON 按资产名正则挑下载 URL（忽略大小写），无匹配返回 1
+# 从 release JSON 按资产名正则挑下载 URL（忽略大小写），无匹配返回失败
+# 多个资产命中时按「名称长度 → 名称字典序」取最小值，不依赖 GitHub 返回的资产顺序
+# （那只是上传顺序，GitHub 没有承诺，上游重传资产就可能变）：
+#   先比长度 —— ASCII 里 `-` (0x2D) < `.` (0x2E)，纯字典序会让 `-static` / `-polyfilled`
+#   这类后缀变体排在纯正版前面；比长度则纯正版（更短）恒胜。
+#   再比字典序 —— 同长度时 {libc} 展开后 gnu/musl 同时命中，取 gnu（g < m）；
+#   hugo_extended_* 命中纯 extended 与 extended_withdeploy，前者更短且更早。
 github.asset.url() {
 	local url
-	url=$(json.run -r --arg pat "$2" 'first(.assets[]? | select(.name | test($pat; "i")) | .browser_download_url) // ""' <<< "$1")
+	url=$(json.run -r --arg pat "$2" '[.assets[]? | select(.name | test($pat; "i"))] | sort_by([(.name | length), .name]) | first | .browser_download_url // ""' <<< "$1")
 	[[ -n $url && $url != "null" ]] && echo "$url"
 }
 
