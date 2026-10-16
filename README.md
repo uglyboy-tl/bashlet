@@ -59,7 +59,7 @@ tools/build src/example.sh -o example
 | `log` | 分级日志（stderr，彩色） |
 | `usage` | 帮助文本渲染（`args.process --help` 调用） |
 | `config` | 配置注册、TOML 读取、内存读写 |
-| `config.persist` | 配置写盘（`config.persist.update/save`，可选，含 yq） |
+| `config.persist` | 配置写盘（`config.persist.update/save/remove_section`，可选） |
 | `report` | Markdown 报告装配与导出 |
 
 ### std/
@@ -101,7 +101,7 @@ tools/build src/example.sh -o example
 **core/log**：`debug` `info` `success` `warn` `error` `setLevel`
 **core/usage**：`name.set` `description.set` `title` `usage` `section` `section.items` `footer` `show` `version`
 **core/config**：`path` `register` `array.register` `loose` `load` `keys` `has` `get` `set` `sections` `array.items` `array.has` `array.get` `array.add` `array.set` `type` `desc`
-**core/config.persist**：`update` `save`
+**core/config.persist**：`update` `remove_section` `save`
 **core/report**：`dir.set` `reset` `init` `section` `subsection` `code` `table.begin` `table.add` `table.end` `export`
 
 **std/array**：`len` `contains` `append` `get` `has_duplicates`
