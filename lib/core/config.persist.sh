@@ -2,6 +2,7 @@
 
 import std/string
 import std/fs
+import core/log
 import core/config
 
 config.persist.update() {
@@ -11,12 +12,15 @@ config.persist.update() {
 	(($# == 4)) && { _s="$1.$2" _k="$3" _v="$4" && config.array.set "$@" || return $?; }
 	[[ ! -f $_f ]] && config.persist.save "$_f" && return 0
 
+	# 值直接嵌进 TOML 双引号串，含引号或换行会把配置写坏；宁可 fail-loud 也不留半个坏文件
+	[[ $_v == *'"'* || $_v == *$'\n'* ]] && {
+		log.error "config value must not contain quote or newline: $_k"
+		return 1
+	}
+
 	_sec="${_s:+[$_s]}"
 	_sec_grep="$(string.escape.regex "${_sec}")"
 	_pat="^${_k}[[:space:]]*=" _repl="${_k} = \"${_v}\""
-
-	# 优先使用 mikefarah/yq 做原生 TOML 更新
-	config.persist._yq_try "$_f" "$_s" "$_k" "$_v" && return 0
 
 	if [[ -n $_sec ]]; then
 		_n=$(fs.find "$_f" "^${_sec_grep}$") || _n=""
@@ -32,28 +36,26 @@ config.persist.update() {
 	} >> "$_f"
 }
 
-# 内部：尝试用 yq 更新文件，不适合/失败时返回 1 走原生逻辑
-config.persist._yq_try() {
-	local _f="$1" _s="$2" _k="$3" _v="$4"
-	command -v yq &>/dev/null || return 1
-	yq --version 2>&1 | grep -qi "mikefarah" || return 1
+# 删除整个 [section]（含其全部键）。section 不存在时返回 0（幂等）
+# 纯文本删段，不解析 TOML：表头允许尾部空白与行内注释，也认数组表 `[[section]]`。
+# 用法: config.persist.remove_section <section> [file]
+config.persist.remove_section() {
+	local _s="${1:-}" _f _tmp
+	(($# >= 2)) && _f="$2" || _f="$(config.path)"
+	[[ -n $_s && -f $_f ]] || return 0
 
-	# section 头不存在时走原生逻辑（避免 yq 输出内联表）
-	if [[ -n $_s ]]; then
-		grep -q "^\[${_s}\]" "$_f" 2>/dev/null || return 1
+	_tmp="$_f.tmp.$$"
+	if awk -v s="[$_s]" '
+		{ line = $0; sub(/^[ \t]+/, "", line); sub(/[ \t]+$/, "", line) }
+		line == s || line == ("[" s "]") { skip = 1; next }
+		substr(line, 1, length(s)) == s && substr(line, length(s) + 1, 1) ~ /[ \t#]/ { skip = 1; next }
+		skip && line ~ /^\[/ { skip = 0 }
+		!skip { print }
+	' "$_f" > "$_tmp"; then
+		mv "$_tmp" "$_f" && return 0
 	fi
-
-	local _expr
-	if [[ -z $_s ]]; then
-		_expr=".${_k} = \"${_v}\""
-	elif [[ $_s == *.* ]]; then
-		local _a="${_s%%.*}" _i="${_s#*.}"
-		_expr=".${_a}.\"${_i}\".${_k} = \"${_v}\""
-	else
-		_expr=".${_s}.${_k} = \"${_v}\""
-	fi
-
-	yq -o toml -i "$_expr" "$_f" 2>/dev/null
+	rm -f "$_tmp"
+	return 1
 }
 
 config.persist.save() {

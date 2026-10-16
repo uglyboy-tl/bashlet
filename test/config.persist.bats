@@ -359,3 +359,142 @@ teardown() {
 	grep -q 'repo = "org/existing"' /tmp/test_update_bug_$$.toml
 }
 
+
+# ========== config.persist.remove_section 测试 ==========
+
+@test "config.persist.remove_section: 删除中间段并保留前后段" {
+	local f="/tmp/test_rm_$$.toml"
+	cat > "$f" << 'EOF'
+top = "keep"
+
+[packages.lf]
+repo = "gokcehan/lf"
+
+[packages.uv]
+repo = "astral-sh/uv"
+file_pattern = "uv-{arch}"
+
+[registry]
+url = "keep"
+EOF
+	config.persist.remove_section "packages.uv" "$f"
+	! grep -q 'packages.uv' "$f"
+	! grep -q 'astral-sh/uv' "$f"
+	grep -q '^\[packages.lf\]$' "$f"
+	grep -q 'repo = "gokcehan/lf"' "$f"
+	grep -q '^\[registry\]$' "$f"
+	grep -q 'url = "keep"' "$f"
+	grep -q 'top = "keep"' "$f"
+}
+
+@test "config.persist.remove_section: 删除文件末尾的段" {
+	local f="/tmp/test_rm_tail_$$.toml"
+	cat > "$f" << 'EOF'
+[packages.lf]
+repo = "gokcehan/lf"
+
+[packages.uv]
+repo = "astral-sh/uv"
+EOF
+	config.persist.remove_section "packages.uv" "$f"
+	! grep -q 'packages.uv' "$f"
+	grep -q '^\[packages.lf\]$' "$f"
+}
+
+@test "config.persist.remove_section: 段不存在时幂等且不改文件" {
+	local f="/tmp/test_rm_idem_$$.toml"
+	printf '[packages.lf]\nrepo = "gokcehan/lf"\n' > "$f"
+	local before
+	before=$(cat "$f")
+
+	run config.persist.remove_section "packages.nope" "$f"
+	assert_success
+	[ "$(cat "$f")" = "$before" ]
+}
+
+@test "config.persist.remove_section: 文件不存在时静默成功" {
+	run config.persist.remove_section "packages.lf" "/tmp/test_rm_missing_$$.toml"
+	assert_success
+}
+
+@test "config.persist.remove_section: 删除后可重新加载且该段键不再可见" {
+	local f="/tmp/test_rm_reload_$$.toml"
+	cat > "$f" << 'EOF'
+[packages.lf]
+repo = "gokcehan/lf"
+file_pattern = "lf-{os}"
+
+[packages.uv]
+repo = "astral-sh/uv"
+EOF
+	config.persist.remove_section "packages.uv" "$f"
+
+	_CONFIG_VALUES=()
+	config.array.register "packages" "repo" ""
+	config.array.register "packages" "file_pattern" ""
+	config.array.register "packages" "enabled" ""
+	config.load "$f"
+	[ "$(config.array.get packages lf repo)" = "gokcehan/lf" ]
+	! config.array.has packages uv
+	grep -q '^\[packages.lf\]$' "$f"
+}
+
+@test "config.persist.remove_section: 段头带尾随空白或行内注释也能删" {
+	local f="/tmp/test_rm_inline_$$.toml"
+	cat > "$f" << 'EOF'
+[packages.lf]
+repo = "gokcehan/lf"
+
+[packages.uv]   # 待删
+repo = "astral-sh/uv"
+
+[registry]
+url = "keep"
+EOF
+	config.persist.remove_section "packages.uv" "$f"
+	! grep -q 'astral-sh/uv' "$f"
+	grep -q '^\[packages.lf\]$' "$f"
+	grep -q '^\[registry\]$' "$f"
+	grep -q 'url = "keep"' "$f"
+}
+
+@test "config.persist.remove_section: 删掉最后一个子表后不留空父表" {
+	local f="/tmp/test_rm_parent_$$.toml"
+	printf '[packages.uv]\nrepo = "astral-sh/uv"\n' > "$f"
+	config.persist.remove_section "packages.uv" "$f"
+	! grep -q '^\[packages\]$' "$f"
+	! grep -q 'astral-sh/uv' "$f"
+}
+
+@test "config.persist.remove_section: 数组表 [[section]] 也能删" {
+	local f="/tmp/test_rm_arraytable_$$.toml"
+	printf 'top = "keep"\n\n[[items]]\nname = "a"\n\n[[items]]\nname = "b"\n' > "$f"
+	config.persist.remove_section "items" "$f"
+	! grep -q 'name = "a"' "$f"
+	! grep -q 'name = "b"' "$f"
+	grep -q 'top = "keep"' "$f"
+}
+
+@test "config.persist.remove_section: 不依赖 yq，屏蔽后行为一致" {
+	local f="/tmp/test_rm_noyq_$$.toml"
+	printf '[packages.lf]\nrepo = "gokcehan/lf"\n\n[packages.uv]\nrepo = "astral-sh/uv"\n' > "$f"
+	PATH=/usr/bin:/bin config.persist.remove_section "packages.uv" "$f"
+	! grep -q 'astral-sh/uv' "$f"
+	grep -q '^\[packages.lf\]$' "$f"
+}
+
+@test "config.persist.update: 值含引号或换行时报错且不改文件" {
+	local f="/tmp/test_update_badvalue_$$.toml"
+	printf '[packages.x]\nrepo = "old"\n' > "$f"
+	config.array.register "packages" "repo" ""
+	local before
+	before=$(cat "$f")
+
+	run config.persist.update "packages" "x" "repo" 'has"quote' "$f"
+	assert_failure
+
+	run config.persist.update "packages" "x" "repo" $'line1\nline2' "$f"
+	assert_failure
+
+	[ "$(cat "$f")" = "$before" ]
+}
