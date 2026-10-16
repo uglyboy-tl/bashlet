@@ -86,3 +86,39 @@ setup() {
 	[[ $output == *"========="* ]]
 	[[ $output == *"Footer Text"* ]]
 }
+
+@test "console.layout.footer - section 后没有条目时不重复打分隔线" {
+	run bash -c 'source "$1"; import std/console.layout; console.layout.section "标题"; console.layout.footer "汇总"' _ "$PROJECT_ROOT/lib/std/import.sh"
+	[ "$status" -eq 0 ]
+	local dashes
+	dashes=$(printf '%s\n' "$output" | grep -c '^=========$' || true)
+	[ "$dashes" = "0" ]
+	[[ $output == *"标题:"* ]]
+	[[ $output == *"汇总"* ]]
+}
+
+@test "console.layout.footer - section 后有条目时保留分隔线" {
+	run bash -c 'source "$1"; import std/console.layout; console.layout.section "标题"; console.layout.item.title 0 "条目"; console.layout.footer "汇总"' _ "$PROJECT_ROOT/lib/std/import.sh"
+	[ "$status" -eq 0 ]
+	local dashes
+	dashes=$(printf '%s\n' "$output" | grep -c '^=========$' || true)
+	[ "$dashes" = "1" ]
+}
+
+@test "console.layout.footer - 第二次 section 后没条目依旧不打分隔线" {
+	run bash -c 'source "$1"; import std/console.layout; console.layout.section "一"; console.layout.item.title 0 "条目"; console.layout.footer "汇总一"; console.layout.section "二"; console.layout.footer "汇总二"' _ "$PROJECT_ROOT/lib/std/import.sh"
+	[ "$status" -eq 0 ]
+	local dashes
+	dashes=$(printf '%s\n' "$output" | grep -c '^=========$' || true)
+	[ "$dashes" = "1" ]
+}
+
+@test "console.layout.item.raw - 自行渲染的条目也能让 footer 保留分隔线" {
+	run bash -c 'source "$1"; import std/console.layout; console.layout.section "标题"; console.layout.item.raw; printf "  裸表格\n"; console.layout.footer "汇总"' _ "$PROJECT_ROOT/lib/std/import.sh"
+	[ "$status" -eq 0 ]
+	local dashes
+	dashes=$(printf '%s\n' "$output" | grep -c '^=========$' || true)
+	[ "$dashes" = "1" ]
+	[[ $output == *"裸表格"* ]]
+	[[ $output == *"汇总"* ]]
+}

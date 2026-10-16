@@ -75,7 +75,7 @@ tools/build src/example.sh -o example
 | `system` | 命令探测、OS/架构 |
 | `cache` | 通用 TTL 缓存：按命名空间 + 键存内容，只做存储与新鲜度判定，策略留给调用方 |
 | `console` | 终端原语：写、宽度、对齐、重复、对齐列表 |
-| `console.layout` | 终端组合渲染：section、缩进条目、footer |
+| `console.layout` | 终端组合渲染：section、缩进条目、footer（footer 按需打分隔线） |
 | `console.epipe` | 非交互输出安全：忽略 SIGPIPE、非 tty 时重定向到日志 |
 | `ansi` | 颜色/样式转义码 |
 | `ansi.powerline` | powerline/Unicode 字形表（按需 import，底座不背） |
@@ -112,7 +112,8 @@ tools/build src/example.sh -o example
 **std/cache**：`dir` `key` `path` `fresh` `put` `get` `clear`
 **std/system**：`command.exist` `command.required` `command.result` `gui_supported` `os` `arch`
 **std/console**：`stdout` `stderr` `repeat` `align` `indent` `ansi_width` `mixed_width` `display_width`
-**std/console.layout**：`section` `footer` `item.title` `item.item` `item.mid` `item.end`
+**std/console.layout**：`section` `footer` `item.title` `item.item` `item.mid` `item.end` `item.raw`
+> `section` 打标题 + 下划线，`footer` 打分隔线 + 汇总行。但 `footer` 只在**自上次 `section` 以来输出过条目**时才打那条分隔线：否则「下划线 + 分隔线」会贴成两条，而空结果（如 `update` 全部已最新）本来就不需要闭合线。自己用 `printf` 画表格、不走 `item.*` 的调用方，要在输出前调一次 `item.raw` 置位。
 **std/console.epipe**：`init`
 **std/ansi**：`enable` `disable` `enable.color` `disable.color` `enable.style` `disable.style` `Color.IsAvailable`
 **std/ansi.powerline**：`enable.powerline` `disable.powerline` `Powerline.IsAvailable`（需 import 本模块才有 `POWERLINE_*`；`ansi.disable` 只重置颜色与样式）
